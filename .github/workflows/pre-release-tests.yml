@@ -1,0 +1,111 @@
+# path-sync copy -n sdlc
+# === DO_NOT_EDIT: path-sync header ===
+name: Pre-Release Tests
+run-name: "Pre-Release: env=${{ inputs.atlas_cloud_env == 'dev' && 'dev' || 'qa' }}, examples=${{ inputs.include_examples }}, provider=${{ inputs.provider_ref }}${{ inputs.skip_tftest && ', skip_tftest' || '' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      atlas_cloud_env:
+        description: 'Atlas cloud environment used'
+        required: true
+        type: choice
+        default: 'qa'
+        options:
+          - 'qa'
+          - 'dev'
+      include_examples:
+        description: 'Examples to test (all or comma-separated list)'
+        required: false
+        type: string
+        default: 'all'
+      provider_ref:
+        description: 'Provider git ref (registry = published, default = default branch)'
+        required: false
+        type: string
+        default: 'registry'
+      skip_tftest:
+        description: 'Skip the tftest-all job'
+        required: false
+        type: boolean
+        default: false
+# === OK_EDIT: path-sync header ===
+
+permissions:
+  contents: read
+  id-token: write # required to assume the AWS role via GitHub OIDC
+
+# === DO_NOT_EDIT: path-sync env ===
+env:
+  MONGODB_ATLAS_ORG_ID: ${{ secrets[inputs.atlas_cloud_env == 'dev' && 'MONGODB_ATLAS_ORG_ID' || 'MONGODB_ATLAS_ORG_ID_QA'] }}
+  MONGODB_ATLAS_CLIENT_ID: ${{ secrets[inputs.atlas_cloud_env == 'dev' && 'MONGODB_ATLAS_CLIENT_ID' || 'MONGODB_ATLAS_CLIENT_ID_QA'] }}
+  MONGODB_ATLAS_CLIENT_SECRET: ${{ secrets[inputs.atlas_cloud_env == 'dev' && 'MONGODB_ATLAS_CLIENT_SECRET' || 'MONGODB_ATLAS_CLIENT_SECRET_QA'] }}
+  MONGODB_ATLAS_BASE_URL: ${{ secrets[inputs.atlas_cloud_env == 'dev' && 'MONGODB_ATLAS_BASE_URL' || 'MONGODB_ATLAS_BASE_URL_QA'] }}
+# === OK_EDIT: path-sync env ===
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  # === DO_NOT_EDIT: path-sync job-tftest ===
+  tftest-all:
+    name: All Terraform Tests
+    if: ${{ !inputs.skip_tftest }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          terraform: 'true'
+          uv: 'true'
+      - name: Setup provider (default branch)
+        uses: ./.github/actions/setup-provider-dev
+        if: inputs.provider_ref == 'default'
+      - name: Setup provider (${{ inputs.provider_ref }})
+        uses: ./.github/actions/setup-provider-dev
+        if: inputs.provider_ref != 'registry' && inputs.provider_ref != 'default'
+        with:
+          provider-ref: ${{ inputs.provider_ref }}
+      - run: just tftest-all
+  # === OK_EDIT: path-sync job-tftest ===
+
+  apply-and-destroy:
+    name: Apply & Destroy Examples
+    runs-on: ubuntu-latest
+    steps:
+      # === DO_NOT_EDIT: path-sync job-apply-setup ===
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          uv: 'true'
+          terraform: 'true'
+      - name: Setup provider (default branch)
+        uses: ./.github/actions/setup-provider-dev
+        if: inputs.provider_ref == 'default'
+      - name: Setup provider (${{ inputs.provider_ref }})
+        uses: ./.github/actions/setup-provider-dev
+        if: inputs.provider_ref != 'registry' && inputs.provider_ref != 'default'
+        with:
+          provider-ref: ${{ inputs.provider_ref }}
+      # === OK_EDIT: path-sync job-apply-setup ===
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@451ce2a72e8d729a59ebeaacab82dbce58e7af4c # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: just dev-vars-chatbot "${MONGODB_ATLAS_ORG_ID}"
+      - name: Apply examples
+        env:
+          INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
+        run: just apply-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+      # === DO_NOT_EDIT: path-sync job-import-validate ===
+      - name: Import validate examples
+        env:
+          INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
+      # === OK_EDIT: path-sync job-import-validate ===
+        run: just import-validate -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+      - name: Destroy examples
+        if: always()
+        env:
+          INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
+        run: just destroy-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"

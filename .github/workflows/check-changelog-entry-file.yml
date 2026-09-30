@@ -1,0 +1,68 @@
+# path-sync copy -n sdlc
+name: Check changelog entry file
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+env:
+  SKIP_PREFIXES: chore test doc ci refactor
+
+jobs:
+  should-skip:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.eval.outputs.skip }}
+    steps:
+      - id: eval
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          HAS_SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog-check') }}
+        run: |
+          if [ "$HAS_SKIP_LABEL" = "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for prefix in $SKIP_PREFIXES; do
+            if [[ "$PR_TITLE" == "$prefix:"* ]] || [[ "$PR_TITLE" == "$prefix("* ]]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+  check:
+    needs: should-skip
+    if: needs.should-skip.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gh pr view reads PR files
+    env:
+      CHANGELOG_FILE: ".changelog/${{ github.event.pull_request.number }}.txt"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          go: 'true'
+          go-version-file: 'tools/changelog/check-changelog-entry-file/go.mod'
+
+      - name: Validate .changelog directory changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Get .changelog files that are not the expected file (ignoring .gitkeep)
+          OTHER_FILES=$(gh pr view "${PR_NUMBER}" --json files \
+            --jq ".files[].path | select(startswith(\".changelog/\") and . != \"${CHANGELOG_FILE}\" and . != \".changelog/.gitkeep\")")
+
+          if [ -n "${OTHER_FILES}" ]; then
+            printf "Error: Only ${CHANGELOG_FILE} should be modified in this PR\nOther files found:\n${OTHER_FILES}\n"
+            exit 1
+          fi
+
+      - name: Validate changelog entry content
+        run: just check-changelog-entry-file "${CHANGELOG_FILE}"

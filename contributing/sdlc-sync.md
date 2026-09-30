@@ -1,0 +1,192 @@
+<!-- path-sync copy -n sdlc -->
+# SDLC Sync Guide
+
+This guide explains how SDLC tooling is shared from the **cluster module** (source) to other modules (destinations like `atlas-azure`).
+
+## How It Works
+
+The cluster module defines shared tooling in [`.github/sdlc.src.yaml`](../.github/sdlc.src.yaml). The `path-sync` tool copies files one-way from cluster to destination modules.
+
+```
+cluster (source) ──sync──> atlas-azure (destination)
+                 ──sync──> other-module (destination)
+```
+
+Changes to shared tooling must be made in the cluster repository. Destination modules receive updates through sync.
+
+## What Gets Synced
+
+| Category | Paths | Notes |
+|----------|-------|-------|
+| Python tooling | `tools/{changelog,docs,release,workspace}/` and selected `tools/dev/` files | `dev_vars.py` is scaffolded once, then destination-owned |
+| Workflows | `.github/workflows/` | `code-health.yml` has per-job section markers |
+| Config | `justfile`, `.pre-commit-config.yaml`, `.terraform-docs.yml` | `justfile` has section markers |
+| GitHub | `.github/CODEOWNERS`, `pull_request_template.md`, `ISSUE_TEMPLATE/` | |
+| Contributing | `contributing/{README,changelog-process,documentation-guide,development-guide,sdlc-sync}.md` | |
+
+**Scaffolded once, then destination-owned:**
+
+- `tools/dev/dev_vars.py` - workspace paths and test file patterns.
+- `docs/examples.yaml` - example configuration.
+- `docs/inputs_groups.yaml` - README input grouping.
+
+**Not synced:**
+
+- `cleanup-test-env.yml` and `dev-integration-test.yml`.
+
+## Sync Modes
+
+| Mode | Behavior |
+|------|----------|
+| `sync` (default) | Copy if destination missing or source newer |
+| `replace` | Always overwrite destination |
+| `scaffold` | Copy only when the destination path is missing; the destination owns later changes |
+
+## Section Markers
+
+Section markers allow mixing shared and module-specific content within synced files. They work in both `justfile` and workflow files like `code-health.yml`.
+
+### Basic Sections
+
+```makefile
+# === OK_EDIT: path-sync header ===
+# Module-specific configuration (preserved during sync)
+PLAN_TEST_FILES := "-filter=tests/plan_validations.tftest.hcl ..."
+
+# === DO_NOT_EDIT: path-sync standard ===
+# Shared recipes (replaced during sync)
+pre-commit: fmt validate lint check-docs py-check
+    @echo "Pre-commit checks passed"
+
+# === OK_EDIT: path-sync standard ===
+# Module-specific recipes below (not synced)
+```
+
+| Section | Marker | Behavior |
+|---------|--------|----------|
+| Header | `OK_EDIT: path-sync header` | Module-specific variables, preserved |
+| Standard | `DO_NOT_EDIT: path-sync standard` | Shared recipes, replaced |
+
+### Resumable Sections (Workflows)
+
+Resumable sections allow user-editable gaps within a managed section. The same section ID can pause (`OK_EDIT`) and resume (`DO_NOT_EDIT`):
+
+```yaml
+# === DO_NOT_EDIT: path-sync job-snapshot-tests ===
+plan-snapshot-tests:
+  name: Terraform Examples Plan Snapshot Tests
+  runs-on: ubuntu-latest
+# === OK_EDIT: path-sync job-snapshot-tests ===
+  env:
+    # User-managed: Add cloud provider credentials
+    MONGODB_ATLAS_CLIENT_ID: ${{ secrets.MONGODB_ATLAS_CLIENT_ID }}
+# === DO_NOT_EDIT: path-sync job-snapshot-tests ===
+  steps:
+    - uses: actions/checkout@v4
+# === OK_EDIT: path-sync job-snapshot-tests ===
+```
+
+**Behavior**:
+- Managed parts (between `DO_NOT_EDIT` and `OK_EDIT`) are synced from source
+- Gap content (between `OK_EDIT` and next `DO_NOT_EDIT` of same ID) is preserved in destination
+- New files use source gap content as boilerplate/template
+
+### Workflow Sections (code-health.yml)
+
+The `code-health.yml` workflow uses per-job section markers:
+
+| Section ID | Job | Notes |
+|------------|-----|-------|
+| `triggers` | - | Workflow triggers (on: push, PR, etc.) |
+| `job-check` | `check` | Code quality validation |
+| `job-py-tests` | `py-tests` | Shared Python tooling tests |
+| `job-plan-tests` | `plan-tests` | Terraform unit plan tests |
+| `job-compat-tests` | `compat-tests` | Terraform CLI version compatibility |
+| `job-snapshot-tests` | `plan-snapshot-tests` | Version selection and plan snapshots with resumable gaps for env vars and commands |
+| `job-slack` | `slack-notification` | Slack notification on failure |
+
+**Gradual enablement**: New repos can use `skip_sections` to exclude jobs not yet ready:
+
+```yaml
+# sdlc.src.yaml
+destinations:
+  - name: gcp
+    skip_sections:
+      .github/workflows/code-health.yml: [triggers, job-snapshot-tests]
+```
+
+Skip `triggers` and `job-snapshot-tests` together when a destination retains a legacy snapshot job
+or workflow inputs. This prevents shared triggers from removing inputs required by the
+destination-owned job. Remove both skips in the same onboarding change and re-sync.
+
+Skipping a section prevents path-sync from adding or updating it; it does not disable an existing
+destination section.
+
+Before enabling the section, set `MONGODB_ATLAS_PROVIDER_MIN_VERSION` to an exact supported release
+in the destination-owned environment gap. Preserve the destination's credentials, setup, and
+snapshot commands in the `OK_EDIT` gaps. See [test-guide.md](./test-guide.md) for lane behavior.
+
+Import validation (`justfile` section `import-validate`, workflow section `job-import-validate`) is enabled for cluster (source) and project by default. Other destinations skip those sections until they opt in.
+
+## For Destination Module Developers
+
+**Do not modify synced files directly.** Changes will be overwritten on next sync.
+
+### Change Request Options
+
+| Option | Approach | When to use |
+|--------|----------|-------------|
+| SRC first | PR in cluster repo, wait for sync | Default, maintains single source of truth |
+| Dual PR | PR in both azure and cluster (ignore failed validation) | Urgent fixes |
+| Opt-out file | Remove path-sync header from file | File becomes DEST-owned, no future syncs |
+| Opt-out section | Add section marker in SRC, use `skip_sections` in DEST config | Partial opt-out |
+
+### Module-Specific Configuration
+
+Edit these files freely (not synced):
+- `tools/dev/dev_vars.py` - workspace paths and test file patterns
+- `docs/examples.yaml` - example table configuration
+- `docs/inputs_groups.yaml` - variable groupings
+
+### Adding Module-Specific CI
+
+Create workflows with unique names. Only files matching sync patterns are overwritten:
+
+```yaml
+# .github/workflows/my-module-test.yml
+# Module-specific workflow - not managed by sync
+name: My Module Test
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+```
+
+## Running the Sync
+
+From the cluster repository:
+
+```bash
+just sdlc-sync-dry  # Preview changes
+just sdlc-sync      # Apply sync
+```
+
+Destination verification runs before pull request creation. Failures are reported but do not block
+pull request creation, so resolve them before merging.
+
+## Testing Changes (Source Developers)
+
+To validate synced files work before merging source changes:
+
+1. Create PR in cluster repo with the changes
+2. Run `just sdlc-sync` locally (or trigger workflow dispatch from PR branch)
+3. Review the changes in DEST repos - their CI will validate the changes
+4. If DEST CI passes, merge SRC PR, then commit DEST changes
+
+## Why One-Way Sync?
+
+- **Single source of truth:** Cluster team owns shared tooling
+- **No merge conflicts:** One-way flow eliminates reconciliation
+- **Simpler upgrades:** Update once, sync everywhere

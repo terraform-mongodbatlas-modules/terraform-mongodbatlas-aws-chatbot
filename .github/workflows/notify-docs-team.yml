@@ -1,0 +1,54 @@
+# path-sync copy -n sdlc
+name: Notify Docs Team
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+jobs:
+  check:
+    if: github.event.pull_request.draft == false && !startsWith(github.head_ref, 'sync/')
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.changes.outputs.files }}
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+        id: changes
+        with:
+          filters: |
+            files:
+              - '.changelog/*.txt'
+              - 'README.md'
+              - 'docs/*.md'
+
+  slack-notification:
+    needs: check
+    if: ${{ needs.check.outputs.files == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # Needed by sticky-pull-request-comment
+    steps:
+      - uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_DOCS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ github.event.repository.name }}: hey ${{ secrets.SLACK_DOCS_TAG }}, this is APIx bot, can you please review <${{ github.event.pull_request.html_url }}|PR ${{ github.event.pull_request.number }}>? thanks a lot!"
+                  }
+                }
+              ]
+            }
+      - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88
+        with:
+          header: pr-title-slack-doc
+          append: true
+          message: "APIx bot: a message has been sent to Docs Slack channel"

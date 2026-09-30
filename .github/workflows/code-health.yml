@@ -1,0 +1,78 @@
+# path-sync copy -n sdlc
+# === DO_NOT_EDIT: path-sync triggers ===
+name: Code Health
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: '0 2 * * *'
+# === OK_EDIT: path-sync triggers ===
+
+permissions:
+  contents: read
+
+jobs:
+  # === DO_NOT_EDIT: path-sync job-check ===
+  check:
+    name: Code Quality & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          terraform: 'true'
+          docs: 'true'
+      - name: Run all validation checks
+        run: just pre-commit
+  # === OK_EDIT: path-sync job-check ===
+
+  # === DO_NOT_EDIT: path-sync job-py-tests ===
+  py-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          uv: 'true'
+          terraform: 'true'
+          go: 'true'
+          go-version-file: 'tools/changelog/check-changelog-entry-file/go.mod'
+      - name: Run Python tests
+        run: just py-test
+  # === OK_EDIT: path-sync job-py-tests ===
+
+  # === DO_NOT_EDIT: path-sync job-plan-tests ===
+  plan-tests:
+    name: Terraform Unit Plan Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          terraform: 'true'
+      - name: Run Terraform plan tests
+        run: just unit-plan-tests
+  # === OK_EDIT: path-sync job-plan-tests ===
+
+  # === DO_NOT_EDIT: path-sync job-compat-tests ===
+  compat-tests:
+    name: Terraform CLI Version Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          uv: 'true'
+          mise: 'true'
+      - run: just test-compat
+  # === OK_EDIT: path-sync job-compat-tests ===
+
