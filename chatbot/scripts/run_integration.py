@@ -90,8 +90,8 @@ def require_voyage_env() -> tuple[str, str]:
     if missing:
         msg = (
             f"missing required environment: {', '.join(missing)}. "
-            "Source the Voyage env file first:\n"
-            "  set -a; source /Users/espen.albert/code/z/atlas_init/profiles/default/.env-voyage; set +a"
+            "Set VOYAGE_API_KEY and EMBEDDING_PROVIDER_ENDPOINT before running the "
+            "integration tier; CI supplies both as a repository secret and variable."
         )
         raise SystemExit(msg)
     return os.environ["VOYAGE_API_KEY"], embedding_endpoint()
