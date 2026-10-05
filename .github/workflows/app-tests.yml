@@ -11,10 +11,6 @@
 name: Chatbot App Tests
 
 on:
-  push:
-    paths:
-      - "chatbot/**"
-      - ".github/workflows/app-tests.yml"
   pull_request:
     paths:
       - "chatbot/**"

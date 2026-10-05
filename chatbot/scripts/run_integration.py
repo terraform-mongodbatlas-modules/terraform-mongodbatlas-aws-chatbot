@@ -91,7 +91,9 @@ def require_voyage_env() -> tuple[str, str]:
         msg = (
             f"missing required environment: {', '.join(missing)}. "
             "Set VOYAGE_API_KEY and EMBEDDING_PROVIDER_ENDPOINT before running the "
-            "integration tier; CI supplies both as a repository secret and variable."
+            "integration tier; CI supplies both as a repository secret and variable. "
+            "For local runs, export them first, for example:\n"
+            '  export VOYAGE_API_KEY=... EMBEDDING_PROVIDER_ENDPOINT=https://<voyage-endpoint>'
         )
         raise SystemExit(msg)
     return os.environ["VOYAGE_API_KEY"], embedding_endpoint()
