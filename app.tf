@@ -1,0 +1,80 @@
+# The app secret and the ECS service. The secret JSON the app stack reads is
+# assembled here from the app-infra output, so one apply wires the app end to
+# end.
+
+resource "random_password" "chainlit_auth" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "chainlit_demo" {
+  length  = 16
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "app" {
+  for_each = local.apps
+
+  region                  = each.value.aws_region
+  name                    = each.value.runtime_secret_name
+  tags                    = local.tags
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "app" {
+  for_each = local.apps
+
+  region    = each.value.aws_region
+  secret_id = aws_secretsmanager_secret.app[each.key].id
+  secret_string = jsonencode(merge(
+    {
+      name               = each.value.name
+      aws_region         = each.value.aws_region
+      ecr_repository_url = local.app_image[each.key].ecr_repository_url
+      network            = module.app_infra.ecs_apps[each.key].network
+      iam                = module.app_infra.ecs_apps[each.key].iam
+      routing = module.app_infra.ecs_apps[each.key].routing == null ? null : merge(
+        module.app_infra.ecs_apps[each.key].routing,
+        { health_check_path = "/" }
+      )
+      container = {
+        env         = local.app_container_env[each.key]
+        secret_keys = local.app_secret_keys[each.key]
+      }
+    },
+    each.key == "chatbot" ? {
+      CHAINLIT_AUTH_SECRET   = random_password.chainlit_auth.result
+      CHAINLIT_DEMO_PASSWORD = random_password.chainlit_demo.result
+    } : {},
+    module.llm.secrets
+  ))
+}
+
+module "ecs_service" {
+  for_each = local.apps
+
+  source = "./modules/ecs-service"
+
+  name               = each.value.name
+  aws_region         = each.value.aws_region
+  ecr_repository_url = local.app_image[each.key].ecr_repository_url
+  network            = module.app_infra.ecs_apps[each.key].network
+  iam                = module.app_infra.ecs_apps[each.key].iam
+  routing = module.app_infra.ecs_apps[each.key].routing == null ? null : merge(
+    module.app_infra.ecs_apps[each.key].routing,
+    { health_check_path = "/" }
+  )
+  container = {
+    env         = local.app_container_env[each.key]
+    secret_keys = local.app_secret_keys[each.key]
+    secret_arn  = aws_secretsmanager_secret.app[each.key].arn
+  }
+  task_cpu    = each.value.task_cpu
+  task_memory = each.value.task_memory
+  image_tag   = local.app_image[each.key].image_tag
+  tags        = local.tags
+
+  # A built image must exist before the service starts. `terraform_data.build`
+  # is empty when `features.ecr` is false, and the dependency is then a no-op.
+  depends_on = [terraform_data.build]
+}

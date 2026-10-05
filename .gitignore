@@ -29,3 +29,7 @@ outputs_actual.json
 dev.tfrc
 provider-src/
 # === OK_EDIT: path-sync gitignore-workspace ===
+
+# Module render and build artifacts
+.render/
+.build/

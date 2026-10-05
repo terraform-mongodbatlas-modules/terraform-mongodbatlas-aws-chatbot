@@ -1,0 +1,177 @@
+mock_provider "mongodbatlas" {
+  override_during = plan
+
+  mock_data "mongodbatlas_roles_org_id" {
+    defaults = { org_id = "org123" }
+  }
+}
+
+mock_provider "aws" {
+  override_during = plan
+
+  mock_data "aws_availability_zones" {
+    defaults = { names = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1e", "us-east-1f"] }
+  }
+
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "123456789012" }
+  }
+
+  mock_data "aws_iam_policy_document" {
+    defaults = { json = "{}" }
+  }
+
+  mock_data "aws_region" {
+    defaults = { name = "us-east-1" }
+  }
+
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = { id = "pl-cloudfront" }
+  }
+
+  mock_data "aws_cloudfront_cache_policy" {
+    defaults = { id = "cache-disabled" }
+  }
+
+  mock_data "aws_cloudfront_origin_request_policy" {
+    defaults = { id = "origin-req" }
+  }
+
+  mock_resource "aws_cloudfront_distribution" {
+    defaults = {
+      domain_name = "d111111abcdef8.cloudfront.net"
+      id          = "E123456789"
+    }
+  }
+
+  mock_resource "aws_cloudfront_vpc_origin" {
+    defaults = { id = "vo-test" }
+  }
+
+  mock_resource "aws_lb_listener" {
+    defaults = { arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/example/abc/def" }
+  }
+
+  mock_resource "aws_ecr_repository" {
+    defaults = { repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/mongodb-chatbot-demo" }
+  }
+}
+
+mock_provider "random" {
+  override_during = plan
+
+  mock_resource "random_password" {
+    defaults = { result = "test-password" }
+  }
+}
+
+mock_provider "archive" {
+  override_during = plan
+
+  mock_data "archive_file" {
+    defaults = {
+      output_path         = ".build/app.zip"
+      output_base64sha256 = "app-hash"
+    }
+  }
+}
+
+mock_provider "time" {
+  override_during = plan
+}
+
+mock_provider "local" {
+  override_during = plan
+
+  mock_data "local_file" {
+    defaults = {
+      content = jsonencode({
+        status               = "SUCCEEDED"
+        tag                  = "sha-test"
+        log_deep_link        = "https://example.com/logs"
+        codebuild_duration_s = 50
+      })
+    }
+  }
+}
+
+override_module {
+  target          = module.atlas_cluster
+  override_during = plan
+  outputs = {
+    connection_strings = {
+      standard_srv = "mongodb+srv://cluster.example.mongodb.net"
+      private_srv  = ""
+      private_endpoint = [{
+        srv_connection_string = "mongodb+srv://pl-0.example.mongodb.net"
+        endpoints             = []
+      }]
+    }
+  }
+}
+
+variables {
+  app_name = "mongodb-chatbot-demo"
+}
+
+run "minimal_inputs_name_everything_from_app_name" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      local.atlas_org_id == "org123",
+      local.aws_region == "us-east-1",
+      local.apps["chatbot"].name == "mongodb-chatbot-demo",
+      local.apps["chatbot"].runtime_secret_name == "mongodb-chatbot-demo-app",
+      local.ecr_repositories["chatbot"].name == "mongodb-chatbot-demo",
+      module.app_infra.ecs_apps["chatbot"].name == "mongodb-chatbot-demo",
+      module.app_infra.ecs_apps["chatbot"].runtime_secret_name == "mongodb-chatbot-demo-app",
+      module.ecs_service["chatbot"].ecs_cluster_name == "mongodb-chatbot-demo",
+      module.ecs_service["chatbot"].ecs_service_name == "mongodb-chatbot-demo",
+    ])
+    error_message = "The project, AWS resources, ECR repository, ECS service, and app secret should all read app_name"
+  }
+}
+
+run "built_image_resolves_to_the_hashed_tag" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      local.image_tags["chatbot"] == "sha-${substr(sha256("app-hash:${local.assets_content_hash}"), 0, 12)}",
+      local.app_image["chatbot"].image_tag == local.image_tags["chatbot"],
+      local.app_image["chatbot"].ecr_repository_url == module.app_infra.ecs_apps["chatbot"].ecr_repository_url,
+      module.ecs_service["chatbot"].image_uri == "${module.app_infra.ecs_apps["chatbot"].ecr_repository_url}:${local.image_tags["chatbot"]}",
+    ])
+    error_message = "A built app should resolve to the module's ECR repository and the tag hashed over both archives"
+  }
+}
+
+run "outputs_expose_the_public_contract" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      startswith(output.https_url, "https://"),
+      strcontains(output.https_url, "cloudfront.net"),
+      output.chainlit_demo_username == "demo",
+      output.chainlit_demo_password == "test-password",
+      output.ecr_repository_url == module.app_infra.ecs_apps["chatbot"].ecr_repository_url,
+      output.connection_string_public == null,
+    ])
+    error_message = "The five outputs should resolve from the composed wiring"
+  }
+}
+
+run "built_in_tags_reach_the_composed_modules" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      local.tags["Example"] == "atlas-aws-chatbot",
+      local.tags["Name"] == "mongodb-chatbot-demo",
+      length(module.app_infra.aws.ecs_task_roles) == 1,
+    ])
+    error_message = "The built-in Example and Name tags should be present by default"
+  }
+}

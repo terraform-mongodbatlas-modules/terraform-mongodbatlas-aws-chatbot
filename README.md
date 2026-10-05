@@ -13,8 +13,10 @@ Run 'just gen-readme' to regenerate. -->
 - [Requirements](#requirements)
 - [Providers](#providers)
 - [Resources](#resources)
-- [Required Inputs](#required-inputs)
-- [Optional Inputs](#optional-inputs)
+- [Required Variables](#required-variables)
+- [Deployment Variables](#deployment-variables)
+- [Content Variables](#content-variables)
+- [Overrides](#overrides)
 - [Outputs](#outputs)
 <!-- END_TOC -->
 
@@ -42,35 +44,301 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](https://developer.hashicorp.com/terraform/install) (>= 1.10)
 
+- <a name="requirement_archive"></a> [archive](https://registry.terraform.io/providers/hashicorp/archive/latest/docs) (~> 2.7)
+
 - <a name="requirement_aws"></a> [aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) (~> 6.0)
+
+- <a name="requirement_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
+
+- <a name="requirement_local"></a> [local](https://registry.terraform.io/providers/hashicorp/local/latest/docs) (~> 2.5)
 
 - <a name="requirement_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
 
 - <a name="requirement_random"></a> [random](https://registry.terraform.io/providers/hashicorp/random/latest/docs) (~> 3.6)
 
+- <a name="requirement_time"></a> [time](https://registry.terraform.io/providers/hashicorp/time/latest/docs) (~> 0.13)
+
 ## Providers
 
-No providers.
+The following providers are used by this module:
+
+- <a name="provider_archive"></a> [archive](https://registry.terraform.io/providers/hashicorp/archive/latest/docs) (~> 2.7)
+
+- <a name="provider_aws"></a> [aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) (~> 6.0)
+
+- <a name="provider_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
+
+- <a name="provider_local"></a> [local](https://registry.terraform.io/providers/hashicorp/local/latest/docs) (~> 2.5)
+
+- <a name="provider_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
+
+- <a name="provider_random"></a> [random](https://registry.terraform.io/providers/hashicorp/random/latest/docs) (~> 3.6)
+
+- <a name="provider_terraform"></a> [terraform](https://developer.hashicorp.com/terraform/language/resources/terraform-data)
+
+- <a name="provider_time"></a> [time](https://registry.terraform.io/providers/hashicorp/time/latest/docs) (~> 0.13)
 
 ## Resources
 
-No resources.
+The following resources are used by this module:
+
+- [aws_codebuild_project.image](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/codebuild_project) (resource)
+- [aws_iam_role.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) (resource)
+- [aws_iam_role_policy.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) (resource)
+- [aws_s3_bucket.source](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) (resource)
+- [aws_s3_object.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) (resource)
+- [aws_s3_object.assets](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) (resource)
+- [aws_secretsmanager_secret.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret) (resource)
+- [aws_secretsmanager_secret_version.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret_version) (resource)
+- [aws_security_group_rule.atlas_pl_ingress_from_app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) (resource)
+- [mongodbatlas_database_user.ecs](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/database_user) (resource)
+- [mongodbatlas_database_user.public_debug](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/database_user) (resource)
+- [random_password.chainlit_auth](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
+- [random_password.chainlit_demo](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
+- [random_password.public_debug](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
+- [terraform_data.build](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
+- [terraform_data.render_assets](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
+- [terraform_data.verify](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
+- [time_sleep.iam_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
+- [archive_file.app](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/data-sources/file) (data source)
+- [archive_file.assets](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/data-sources/file) (data source)
+- [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) (data source)
+- [aws_iam_policy_document.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) (data source)
+- [aws_iam_policy_document.codebuild_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) (data source)
+- [aws_secretsmanager_secret_version.llm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) (data source)
+- [http_http.caller_ip](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http) (data source)
+- [local_file.build_info](https://registry.terraform.io/providers/hashicorp/local/latest/docs/data-sources/file) (data source)
+- [mongodbatlas_roles_org_id.current](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/data-sources/roles_org_id) (data source)
 
 <!-- BEGIN_TF_INPUTS_RAW -->
 <!-- @generated
-WARNING: Inputs section below is processed and grouped by generate_inputs_from_readme.py. Do not edit directly.
+WARNING: This grouped inputs section is auto-generated. Do not edit directly.
 Changes will be overwritten when documentation is regenerated.
+Run 'just docs' to regenerate.
 -->
-## Required Inputs
+## Required Variables
 
-No required inputs.
+### app_name
 
-## Optional Inputs
+Name for the Atlas project, the AWS resources, and the app image. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated.
 
-No optional inputs.
+Type: `string`
+
+
+## Deployment Variables
+
+### regions
+
+Atlas cluster regions. Use AWS region names (for example us-east-1); the Atlas form (US_EAST_1) is also accepted. The app runs in the first region.
+
+Type:
+
+```hcl
+list(object({
+  name       = string
+  node_count = optional(number, 3)
+}))
+```
+
+Default:
+
+```json
+[
+  {
+    "name": "us-east-1",
+    "node_count": 3
+  }
+]
+```
+
+### features
+
+Opt-in deployment features. The defaults produce a private, tagged demo:
+
+- `ecr`: create the ECR repository and build the app image with CodeBuild. Set false to skip both; every app entry must then supply `image_url`.
+- `waf`: attach the AWS Managed Rules Common Rule Set to the CloudFront distribution.
+- `vpc_endpoints`: keep the interface VPC endpoints (ECR, logs, Secrets Manager, STS) in the VPC. Set false to skip them; the app then reaches AWS APIs over NAT, which the module enables.
+- `internet_egress`: allow HTTPS egress from the app security group through NAT.
+- `atlas_byok`: create a customer-managed KMS key and enable Atlas encryption at rest with it.
+- `atlas_s3_log_export`: export Atlas logs to a module-managed S3 bucket.
+- `atlas_s3_backup_export`: export Atlas backups to a module-managed S3 bucket.
+- `debug_access_for_cluster`: add a caller IP to the project access list and create a full-access database user.
+- `verify_deployment_ready`: poll `/health` from the apply and fail on a timeout.
+
+Type:
+
+```hcl
+object({
+  ecr                      = optional(bool, true)
+  waf                      = optional(bool, true)
+  vpc_endpoints            = optional(bool, true)
+  internet_egress          = optional(bool, false)
+  atlas_byok               = optional(bool, false)
+  atlas_s3_log_export      = optional(bool, false)
+  atlas_s3_backup_export   = optional(bool, false)
+  debug_access_for_cluster = optional(bool, false)
+  verify_deployment_ready  = optional(bool, false)
+})
+```
+
+Default: `{}`
+
+### llm
+
+LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly.
+
+Type:
+
+```hcl
+object({
+  provider    = optional(string, "bedrock")
+  model       = optional(string)
+  secret_name = optional(string)
+})
+```
+
+Default: `{}`
+
+### extra_tags
+
+Additional tags merged over the module's built-in `Example` and `Name` tags. Set `overrides.skip_tags = true` to set no tags at all.
+
+Type: `map(string)`
+
+Default: `{}`
+
+
+## Content Variables
+
+### queries
+
+Example questions rendered to `assets/demo_queries.yaml`, keyed by the label shown in the UI. Empty keeps the app's bundled file.
+
+Type: `map(string)`
+
+Default: `{}`
+
+### document_dirs
+
+Directories of documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it.
+
+Type: `list(string)`
+
+Default: `[]`
+
+### assets_dir
+
+Directory mirroring the app's `assets/` tree, copied over the rendered defaults. The branding mechanism: replace `.chainlit/config.toml`, `chainlit.md`, and `public/` without a per-file input.
+
+Type: `string`
+
+Default: `null`
+
+
+## Overrides
+
+### overrides
+
+The named internals and the bring-your-own mechanisms. Empty by default.
+
+- `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
+- `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
+- `apps`: a map of app entries. `chatbot` is the blessed key and deploys even when omitted.
+- `networking`: the shared `main` edge every app routes through.
+- `domain`: the custom-domain aliases and ACM certificate.
+- `allowed_ip`: a fixed debug IP instead of resolving the caller's.
+- `skip_tags`: set no tags at all.
+
+Type:
+
+```hcl
+object({
+  byo_vpc = optional(map(object({
+    vpc_id                  = string
+    private_subnet_ids      = list(string)
+    public_subnet_ids       = optional(list(string), [])
+    vpc_cidr_block          = string
+    private_route_table_ids = list(string)
+  })))
+
+  cluster = optional(object({
+    cluster_type = optional(string, "SHARDED")
+    shard_count  = optional(number, 1)
+    manual_scaling = optional(object({
+      instance_size = string
+    }))
+    auto_scaling = optional(object({
+      min_instance_size = optional(string, "M30")
+    }), {})
+    autoembed_model = optional(string, "voyage-4-lite")
+  }), {})
+
+  apps = optional(map(object({
+    image_url      = optional(string)
+    build_path     = optional(string)
+    container_size = optional(string, "small")
+    task_cpu       = optional(string)
+    task_memory    = optional(string)
+    db_access = optional(object({
+      database_name   = optional(string, "hybrid_search")
+      role_name       = optional(string, "readWrite")
+      collection_name = optional(string)
+    }), {})
+    routing = optional(object({
+      path_pattern      = optional(list(string), ["/*"])
+      host_header       = optional(list(string), [])
+      listener_priority = optional(number, 100)
+      container_port    = optional(number, 8001)
+    }))
+    internet_egress = optional(bool, false)
+    aws_region      = optional(string)
+  })), {})
+
+  networking = optional(object({
+    main = optional(object({
+      waf_disabled = optional(bool, false)
+    }), {})
+  }), {})
+
+  domain = optional(object({
+    aliases             = optional(list(string))
+    acm_certificate_arn = optional(string)
+  }))
+
+  allowed_ip = optional(string, "")
+  skip_tags  = optional(bool, false)
+})
+```
+
+Default: `{}`
+
 <!-- END_TF_INPUTS_RAW -->
 
 ## Outputs
 
-No outputs.
+The following outputs are exported:
+
+### <a name="output_chainlit_demo_password"></a> [chainlit\_demo\_password](#output\_chainlit\_demo\_password)
+
+Description: Demo login password (also in the app secret).
+
+### <a name="output_chainlit_demo_username"></a> [chainlit\_demo\_username](#output\_chainlit\_demo\_username)
+
+Description: Demo login username.
+
+### <a name="output_connection_string_public"></a> [connection\_string\_public](#output\_connection\_string\_public)
+
+Description: Public connection string for the debug database user, for mongosh or a local app. Null when features.debug\_access\_for\_cluster is false.
+
+### <a name="output_ecr_repository_url"></a> [ecr\_repository\_url](#output\_ecr\_repository\_url)
+
+Description: ECR repository URL the module builds the app image into. Null when features.ecr is false.
+
+### <a name="output_https_url"></a> [https\_url](#output\_https\_url)
+
+Description: CloudFront HTTPS URL for the app.
+
+### <a name="output_image_build"></a> [image\_build](#output\_image\_build)
+
+Description: CodeBuild result per built app: status, tag, duration, and log link.
 <!-- END_TF_DOCS -->

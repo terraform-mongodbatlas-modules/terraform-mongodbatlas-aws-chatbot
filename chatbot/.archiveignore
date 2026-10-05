@@ -1,0 +1,24 @@
+# Excludes for the CodeBuild app source zip (data.archive_file.app in build.tf).
+# This file is the single source of truth; build.tf parses it, so change the
+# list here rather than in HCL. It applies to every built app, including a
+# caller's build_path tree.
+#
+# Each non-empty line is a doublestar glob matched against a path relative to
+# the app tree. A `*` does not cross `/`, so a name that can appear at any depth
+# needs a `**/` prefix; `**/` also matches at the top level. There is no `!`
+# negation, so the list only subtracts. Lines starting with `#` and blank lines
+# are ignored.
+#
+# The list covers local build state, VCS metadata, and Chainlit runtime files.
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+dist
+.git
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.DS_Store
+assets/.files
+assets/.chainlit/translations
