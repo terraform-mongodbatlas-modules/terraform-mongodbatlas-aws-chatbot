@@ -93,6 +93,11 @@ output "ecr_repositories" {
   }
 }
 
+output "https_url" {
+  description = "The HTTPS URL of the single HTTP edge. Null when there is no edge or more than one."
+  value       = length(local.http_edges) == 1 ? module.http_edge[keys(local.http_edges)[0]].https_url : null
+}
+
 output "ecs_apps" {
   description = "Resolved ECS apps for the example to store and pass to ecs-service. The caller owns the database name and connection string."
   value = {

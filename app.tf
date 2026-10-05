@@ -60,10 +60,14 @@ module "ecs_service" {
   ecr_repository_url = local.app_image[each.key].ecr_repository_url
   network            = module.app_infra.ecs_apps[each.key].network
   iam                = module.app_infra.ecs_apps[each.key].iam
-  routing = module.app_infra.ecs_apps[each.key].routing == null ? null : merge(
-    module.app_infra.ecs_apps[each.key].routing,
-    { health_check_path = "/" }
-  )
+  routing = module.app_infra.ecs_apps[each.key].routing == null ? null : {
+    listener_arn      = module.app_infra.ecs_apps[each.key].routing.listener_arn
+    listener_priority = module.app_infra.ecs_apps[each.key].routing.listener_priority
+    path_pattern      = module.app_infra.ecs_apps[each.key].routing.path_pattern
+    host_header       = module.app_infra.ecs_apps[each.key].routing.host_header
+    container_port    = module.app_infra.ecs_apps[each.key].routing.container_port
+    health_check_path = "/"
+  }
   container = {
     env         = local.app_container_env[each.key]
     secret_keys = local.app_secret_keys[each.key]

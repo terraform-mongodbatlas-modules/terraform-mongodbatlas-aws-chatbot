@@ -22,16 +22,18 @@ resource "aws_ecs_cluster" "this" {
 }
 
 resource "aws_lb_target_group" "this" {
+  count = var.routing == null ? 0 : 1
+
   region               = var.aws_region
   name                 = var.name
-  port                 = var.routing.container_port
+  port                 = try(var.routing.container_port, null)
   protocol             = "HTTP"
   vpc_id               = data.aws_subnet.first_private.vpc_id
   target_type          = "ip"
   deregistration_delay = var.deregistration_delay
 
   health_check {
-    path = var.routing.health_check_path
+    path = try(var.routing.health_check_path, "/health")
     # 10s interval with 2 healthy checks returns a recovered task to service in
     # about 20s instead of the 30s x 5 defaults (~150s). unhealthy_threshold keeps
     # the AWS default (2) so one slow check does not drain the target.
@@ -43,17 +45,19 @@ resource "aws_lb_target_group" "this" {
 }
 
 resource "aws_lb_listener_rule" "this" {
+  count = var.routing == null ? 0 : 1
+
   region       = var.aws_region
-  listener_arn = var.routing.listener_arn
-  priority     = var.routing.listener_priority
+  listener_arn = try(var.routing.listener_arn, null)
+  priority     = try(var.routing.listener_priority, null)
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
+    target_group_arn = aws_lb_target_group.this[0].arn
   }
 
   dynamic "condition" {
-    for_each = length(var.routing.path_pattern) > 0 ? [1] : []
+    for_each = length(try(var.routing.path_pattern, [])) > 0 ? [1] : []
     content {
       path_pattern {
         values = var.routing.path_pattern
@@ -62,7 +66,7 @@ resource "aws_lb_listener_rule" "this" {
   }
 
   dynamic "condition" {
-    for_each = length(var.routing.host_header) > 0 ? [1] : []
+    for_each = length(try(var.routing.host_header, [])) > 0 ? [1] : []
     content {
       host_header {
         values = var.routing.host_header
@@ -90,7 +94,7 @@ resource "aws_ecs_task_definition" "this" {
     name      = var.name
     image     = local.image_uri
     essential = true
-    portMappings = [{
+    portMappings = var.routing == null ? [] : [{
       containerPort = var.routing.container_port
       protocol      = "tcp"
     }]
@@ -123,7 +127,7 @@ resource "aws_ecs_service" "this" {
   launch_type     = "FARGATE"
 
   wait_for_steady_state             = var.wait_for_steady_state
-  health_check_grace_period_seconds = var.health_check_grace_period_seconds
+  health_check_grace_period_seconds = var.routing == null ? 0 : var.health_check_grace_period_seconds
 
   deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
   deployment_maximum_percent         = var.deployment_maximum_percent
@@ -145,10 +149,13 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.this.arn
-    container_name   = var.name
-    container_port   = var.routing.container_port
+  dynamic "load_balancer" {
+    for_each = var.routing == null ? [] : [1]
+    content {
+      target_group_arn = aws_lb_target_group.this[0].arn
+      container_name   = var.name
+      container_port   = var.routing.container_port
+    }
   }
 
   depends_on = [aws_lb_listener_rule.this]

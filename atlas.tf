@@ -41,8 +41,8 @@ resource "mongodbatlas_database_user" "public_debug" {
   auth_database_name = "admin"
 
   roles {
-    role_name     = local.chatbot_app.db_access.role_name
-    database_name = local.chatbot_app.db_access.database_name
+    role_name     = local.debug_app.db_access.role_name
+    database_name = local.debug_app.db_access.database_name
   }
 
   depends_on = [module.atlas_cluster]

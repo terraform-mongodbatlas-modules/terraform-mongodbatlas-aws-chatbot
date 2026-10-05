@@ -106,7 +106,7 @@ override_module {
 variables {
   app_name = "mongodb-chatbot-demo"
   overrides = {
-    apps = {
+    extra_apps = {
       api = {
         image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
         routing = {
@@ -115,17 +115,13 @@ variables {
         }
       }
       worker = {
-        build_path = "chatbot"
-        routing = {
-          path_pattern      = ["/worker/*"]
-          listener_priority = 300
-        }
+        dockerfile_path = "chatbot/Dockerfile"
       }
     }
   }
 }
 
-run "app_map_expands_services_users_and_builds" {
+run "extra_apps_expand_services_users_and_builds" {
   command = plan
 
   assert {
@@ -139,7 +135,21 @@ run "app_map_expands_services_users_and_builds" {
       !contains(keys(local.build_apps), "api"),
       length(aws_codebuild_project.image) == 2,
     ])
-    error_message = "A caller image_url entry should resolve to that URI and a build_path entry should get its own build"
+    error_message = "A caller image_url entry should resolve to that URI and a dockerfile_path entry should get its own build"
+  }
+}
+
+run "an_app_with_no_routing_is_a_worker" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      local.apps["worker"].routing == null,
+      module.app_infra.ecs_apps["worker"].routing == null,
+      local.apps["api"].routing.listener_priority == 200,
+      length(local.routing_apps) == 2,
+    ])
+    error_message = "An extra app with no routing should compile to a null routing and attach no listener rule"
   }
 }
 
@@ -148,7 +158,7 @@ run "app_key_must_be_dns_safe" {
 
   variables {
     overrides = {
-      apps = {
+      extra_apps = {
         "Bad_Key" = {
           routing = {
             path_pattern      = ["/bad/*"]
@@ -167,8 +177,27 @@ run "app_key_must_not_collide_with_app_name" {
 
   variables {
     overrides = {
-      apps = {
+      extra_apps = {
         "mongodb-chatbot-demo" = {
+          routing = {
+            path_pattern      = ["/other/*"]
+            listener_priority = 400
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}
+
+run "app_key_must_not_be_the_reserved_chatbot" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        chatbot = {
           routing = {
             path_pattern      = ["/other/*"]
             listener_priority = 400

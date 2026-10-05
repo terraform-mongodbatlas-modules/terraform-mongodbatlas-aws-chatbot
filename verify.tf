@@ -4,19 +4,19 @@
 # contract.
 
 resource "terraform_data" "verify" {
-  count = var.features.verify_deployment_ready ? 1 : 0
+  count = var.features.verify_deployment_ready && var.chatbot.enabled ? 1 : 0
 
   depends_on = [module.ecs_service]
 
   triggers_replace = [
-    module.app_infra.aws.http_edges["main"].https_url,
+    module.app_infra.https_url,
     try(local.image_tags["chatbot"], ""),
   ]
 
   provisioner "local-exec" {
     command = join(" ", [
       "python3 ${path.module}/scripts/health_poll.py",
-      "--url ${module.app_infra.aws.http_edges["main"].https_url}",
+      "--url ${module.app_infra.https_url}",
       "--timeout 900",
     ])
   }

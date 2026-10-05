@@ -120,11 +120,7 @@ run "ecr_off_brings_own_image" {
 
   variables {
     features = { ecr = false }
-    overrides = {
-      apps = {
-        chatbot = { image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom:1.0" }
-      }
-    }
+    chatbot  = { image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom:1.0" }
   }
 
   assert {
@@ -132,7 +128,7 @@ run "ecr_off_brings_own_image" {
       length(local.build_apps) == 0,
       length(aws_codebuild_project.image) == 0,
       length(aws_s3_bucket.source) == 0,
-      output.ecr_repository_url == null,
+      output.chatbot.image_build == null,
       local.app_image["chatbot"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom",
       local.app_image["chatbot"].image_tag == "1.0",
     ])

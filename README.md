@@ -15,6 +15,7 @@ Run 'just gen-readme' to regenerate. -->
 - [Resources](#resources)
 - [Required Variables](#required-variables)
 - [Deployment Variables](#deployment-variables)
+- [Chatbot](#chatbot)
 - [Content Variables](#content-variables)
 - [Overrides](#overrides)
 - [Outputs](#outputs)
@@ -208,6 +209,55 @@ Type: `map(string)`
 Default: `{}`
 
 
+## Chatbot
+
+### chatbot
+
+The vendored chat app. Enabled by default; every field defaults to the demo.
+
+- `enabled`: deploy the chatbot. Set false to deploy only `overrides.extra_apps`.
+- `image_url` / `dockerfile_path`: bring your own image, or build your own Dockerfile instead of the vendored app. Mutually exclusive.
+- `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
+- `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
+- `db_access`: the database and role the app authenticates as.
+- `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
+- `internet_egress`: allow HTTPS egress from the app security group through NAT.
+- `aws_region`: the app's AWS region. Defaults to the first entry in `regions`.
+
+Type:
+
+```hcl
+object({
+  enabled         = optional(bool, true)
+  image_url       = optional(string)
+  dockerfile_path = optional(string)
+  container_size  = optional(string, "small")
+  task_cpu        = optional(string)
+  task_memory     = optional(string)
+  db_access = optional(object({
+    database_name   = optional(string, "hybrid_search")
+    role_name       = optional(string, "readWrite")
+    collection_name = optional(string)
+  }), {})
+  routing = optional(object({
+    path_pattern      = optional(list(string), ["/*"])
+    host_header       = optional(list(string), [])
+    listener_priority = optional(number, 100)
+    container_port    = optional(number, 8001)
+    }), {
+    path_pattern      = ["/*"]
+    host_header       = []
+    listener_priority = 100
+    container_port    = 8001
+  })
+  internet_egress = optional(bool, false)
+  aws_region      = optional(string)
+})
+```
+
+Default: `{}`
+
+
 ## Content Variables
 
 ### queries
@@ -243,12 +293,12 @@ Default: `null`
 
 ### overrides
 
-The named internals and the bring-your-own mechanisms. Empty by default.
+The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
 - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-- `apps`: a map of app entries. `chatbot` is the blessed key and deploys even when omitted.
-- `networking`: the shared `main` edge every app routes through.
+- `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+- `networking`: the shared `main` edge every routing app uses.
 - `domain`: the custom-domain aliases and ACM certificate.
 - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
 - `skip_tags`: set no tags at all.
@@ -277,17 +327,19 @@ object({
     autoembed_model = optional(string, "voyage-4-lite")
   }), {})
 
-  apps = optional(map(object({
-    image_url      = optional(string)
-    build_path     = optional(string)
-    container_size = optional(string, "small")
-    task_cpu       = optional(string)
-    task_memory    = optional(string)
+  extra_apps = optional(map(object({
+    image_url       = optional(string)
+    dockerfile_path = optional(string)
+    container_size  = optional(string, "small")
+    task_cpu        = optional(string)
+    task_memory     = optional(string)
     db_access = optional(object({
       database_name   = optional(string, "hybrid_search")
       role_name       = optional(string, "readWrite")
       collection_name = optional(string)
     }), {})
+    # No default: an omitted or null routing is a private worker with no
+    # listener rule. A `/*` default would collide with the chatbot's rule.
     routing = optional(object({
       path_pattern      = optional(list(string), ["/*"])
       host_header       = optional(list(string), [])
@@ -322,27 +374,23 @@ Default: `{}`
 
 The following outputs are exported:
 
-### <a name="output_chainlit_demo_password"></a> [chainlit\_demo\_password](#output\_chainlit\_demo\_password)
+### <a name="output_chatbot"></a> [chatbot](#output\_chatbot)
 
-Description: Demo login password (also in the app secret).
+Description: The chat app's URL, image, login, and build result. Null when chatbot.enabled is false.
 
-### <a name="output_chainlit_demo_username"></a> [chainlit\_demo\_username](#output\_chainlit\_demo\_username)
+### <a name="output_chatbot_login_password"></a> [chatbot\_login\_password](#output\_chatbot\_login\_password)
 
-Description: Demo login username.
+Description: Demo login password (also in the app secret). Null when chatbot.enabled is false.
 
 ### <a name="output_connection_string_public"></a> [connection\_string\_public](#output\_connection\_string\_public)
 
 Description: Public connection string for the debug database user, for mongosh or a local app. Null when features.debug\_access\_for\_cluster is false.
 
-### <a name="output_ecr_repository_url"></a> [ecr\_repository\_url](#output\_ecr\_repository\_url)
+### <a name="output_extra_apps"></a> [extra\_apps](#output\_extra\_apps)
 
-Description: ECR repository URL the module builds the app image into. Null when features.ecr is false.
+Description: Per-app URL, path, image, and build result for overrides.extra\_apps.
 
 ### <a name="output_https_url"></a> [https\_url](#output\_https\_url)
 
-Description: CloudFront HTTPS URL for the app.
-
-### <a name="output_image_build"></a> [image\_build](#output\_image\_build)
-
-Description: CodeBuild result per built app: status, tag, duration, and log link.
+Description: CloudFront HTTPS URL for the HTTP edge. Null when no app routes.
 <!-- END_TF_DOCS -->

@@ -154,12 +154,15 @@ run "outputs_expose_the_public_contract" {
     condition = alltrue([
       startswith(output.https_url, "https://"),
       strcontains(output.https_url, "cloudfront.net"),
-      output.chainlit_demo_username == "demo",
-      output.chainlit_demo_password == "test-password",
-      output.ecr_repository_url == module.app_infra.ecs_apps["chatbot"].ecr_repository_url,
+      output.chatbot.enabled == true,
+      output.chatbot.login_username == "demo",
+      output.chatbot.https_url == output.https_url,
+      output.chatbot.image_uri == "${module.app_infra.ecs_apps["chatbot"].ecr_repository_url}:${local.image_tags["chatbot"]}",
+      output.chatbot_login_password == "test-password",
+      length(output.extra_apps) == 0,
       output.connection_string_public == null,
     ])
-    error_message = "The five outputs should resolve from the composed wiring"
+    error_message = "The grouped outputs should resolve from the composed wiring"
   }
 }
 

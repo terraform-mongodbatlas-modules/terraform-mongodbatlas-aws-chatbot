@@ -1,6 +1,7 @@
 # v1 top-level input surface. The flat inputs cover the common path; the
-# `overrides` object holds the named internals and the BYO mechanisms. The
-# decision source of truth is docs/16/g16-13_atlas-aws-chatbot-v010.md.
+# `chatbot` object configures the vendored app; `overrides` holds the named
+# internals, the BYO mechanisms, and `extra_apps`. The decision source of truth
+# is docs/16/g16-13_atlas-aws-chatbot-v010.md.
 
 variable "app_name" {
   description = "Name for the Atlas project, the AWS resources, and the app image. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated."
@@ -56,6 +57,11 @@ variable "features" {
     verify_deployment_ready  = optional(bool, false)
   })
   default = {}
+
+  validation {
+    condition     = !var.features.verify_deployment_ready || var.chatbot.enabled
+    error_message = "features.verify_deployment_ready requires chatbot.enabled."
+  }
 }
 
 variable "queries" {
@@ -108,6 +114,63 @@ variable "assets_dir" {
   default     = null
 }
 
+variable "chatbot" {
+  description = <<-EOT
+    The vendored chat app. Enabled by default; every field defaults to the demo.
+
+    - `enabled`: deploy the chatbot. Set false to deploy only `overrides.extra_apps`.
+    - `image_url` / `dockerfile_path`: bring your own image, or build your own Dockerfile instead of the vendored app. Mutually exclusive.
+    - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
+    - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
+    - `db_access`: the database and role the app authenticates as.
+    - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
+    - `internet_egress`: allow HTTPS egress from the app security group through NAT.
+    - `aws_region`: the app's AWS region. Defaults to the first entry in `regions`.
+  EOT
+  type = object({
+    enabled         = optional(bool, true)
+    image_url       = optional(string)
+    dockerfile_path = optional(string)
+    container_size  = optional(string, "small")
+    task_cpu        = optional(string)
+    task_memory     = optional(string)
+    db_access = optional(object({
+      database_name   = optional(string, "hybrid_search")
+      role_name       = optional(string, "readWrite")
+      collection_name = optional(string)
+    }), {})
+    routing = optional(object({
+      path_pattern      = optional(list(string), ["/*"])
+      host_header       = optional(list(string), [])
+      listener_priority = optional(number, 100)
+      container_port    = optional(number, 8001)
+      }), {
+      path_pattern      = ["/*"]
+      host_header       = []
+      listener_priority = 100
+      container_port    = 8001
+    })
+    internet_egress = optional(bool, false)
+    aws_region      = optional(string)
+  })
+  default = {}
+
+  validation {
+    condition     = var.chatbot.image_url == null || var.chatbot.dockerfile_path == null
+    error_message = "chatbot: set image_url or dockerfile_path, not both."
+  }
+
+  validation {
+    condition     = contains(["small", "medium", "large"], var.chatbot.container_size)
+    error_message = "chatbot.container_size must be small, medium, or large."
+  }
+
+  validation {
+    condition     = var.chatbot.dockerfile_path == null || fileexists(var.chatbot.dockerfile_path)
+    error_message = "chatbot.dockerfile_path must point to an existing Dockerfile."
+  }
+}
+
 variable "llm" {
   description = "LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly."
   type = object({
@@ -131,12 +194,12 @@ variable "extra_tags" {
 
 variable "overrides" {
   description = <<-EOT
-    The named internals and the bring-your-own mechanisms. Empty by default.
+    The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
     - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-    - `apps`: a map of app entries. `chatbot` is the blessed key and deploys even when omitted.
-    - `networking`: the shared `main` edge every app routes through.
+    - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+    - `networking`: the shared `main` edge every routing app uses.
     - `domain`: the custom-domain aliases and ACM certificate.
     - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
     - `skip_tags`: set no tags at all.
@@ -162,17 +225,19 @@ variable "overrides" {
       autoembed_model = optional(string, "voyage-4-lite")
     }), {})
 
-    apps = optional(map(object({
-      image_url      = optional(string)
-      build_path     = optional(string)
-      container_size = optional(string, "small")
-      task_cpu       = optional(string)
-      task_memory    = optional(string)
+    extra_apps = optional(map(object({
+      image_url       = optional(string)
+      dockerfile_path = optional(string)
+      container_size  = optional(string, "small")
+      task_cpu        = optional(string)
+      task_memory     = optional(string)
       db_access = optional(object({
         database_name   = optional(string, "hybrid_search")
         role_name       = optional(string, "readWrite")
         collection_name = optional(string)
       }), {})
+      # No default: an omitted or null routing is a private worker with no
+      # listener rule. A `/*` default would collide with the chatbot's rule.
       routing = optional(object({
         path_pattern      = optional(list(string), ["/*"])
         host_header       = optional(list(string), [])
@@ -200,33 +265,44 @@ variable "overrides" {
   default = {}
 
   validation {
-    condition = alltrue([
-      for _, app in var.overrides.apps :
-      app.image_url == null || app.build_path == null
-    ])
-    error_message = "overrides.apps.*: set image_url or build_path, not both."
+    condition = (
+      alltrue([
+        for _, app in var.overrides.extra_apps :
+        app.image_url == null || app.dockerfile_path == null
+      ])
+    )
+    error_message = "overrides.extra_apps.*: set image_url or dockerfile_path, not both."
   }
 
   validation {
     condition = alltrue([
-      for _, app in var.overrides.apps :
+      for _, app in var.overrides.extra_apps :
       contains(["small", "medium", "large"], coalesce(app.container_size, "small"))
     ])
-    error_message = "overrides.apps.*.container_size must be small, medium, or large."
+    error_message = "overrides.extra_apps.*.container_size must be small, medium, or large."
+  }
+
+  validation {
+    condition = alltrue([
+      for _, app in var.overrides.extra_apps :
+      app.dockerfile_path == null || fileexists(app.dockerfile_path)
+    ])
+    error_message = "overrides.extra_apps.*.dockerfile_path must point to an existing Dockerfile."
   }
 
   # A non-chatbot app uses its map key as `name`, which drives the ECR
   # repository, ECS cluster/service/task family, ALB target group (32-char
   # limit), and IAM role names. Keep the key DNS-safe and short, and do not let
-  # it collide with the blessed chatbot's name (app_name).
+  # it collide with the chatbot's name (app_name) or the reserved `chatbot` key.
   validation {
     condition = alltrue([
-      for k in keys(var.overrides.apps) :
+      for k in keys(var.overrides.extra_apps) :
       length(k) <= 23 &&
       can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", k)) &&
-      k != var.app_name
+      k != var.app_name &&
+      k != "chatbot"
     ])
-    error_message = "overrides.apps keys must be 1 to 23 characters of lowercase letters, digits, and hyphens (start and end with a letter or digit), and must not equal app_name."
+    error_message = "overrides.extra_apps keys must be 1 to 23 characters of lowercase letters, digits, and hyphens (start and end with a letter or digit), and must not equal app_name or chatbot."
   }
 
   validation {
@@ -246,13 +322,18 @@ variable "overrides" {
   }
 
   validation {
+    condition     = var.chatbot.enabled || length(var.overrides.extra_apps) > 0
+    error_message = "overrides.extra_apps must be non-empty when chatbot.enabled is false."
+  }
+
+  validation {
     condition = var.features.ecr || (
-      try(var.overrides.apps["chatbot"].image_url, null) != null &&
+      (!var.chatbot.enabled || var.chatbot.image_url != null) &&
       alltrue([
-        for _, app in var.overrides.apps :
-        app.image_url != null && app.build_path == null
+        for _, app in var.overrides.extra_apps :
+        app.image_url != null
       ])
     )
-    error_message = "features.ecr = false creates no repository, so every app entry (including chatbot) must set image_url and must not set build_path."
+    error_message = "features.ecr = false creates no repository, so every app entry (chatbot and extra_apps) must set image_url and must not set dockerfile_path."
   }
 }

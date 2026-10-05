@@ -42,15 +42,21 @@ locals {
   llm_env      = var.llm.model == null ? {} : { (local.llm_model_env_names[var.llm.provider]) = var.llm.model }
 
   # --- Apps -------------------------------------------------------------------
-  # `chatbot` is the blessed key; the module deploys it even when `overrides.apps`
-  # omits it. `try()` reads the merged map uniformly, so the literal `{}` default
-  # and a caller's fully specified entry resolve the same way.
+  # `chatbot` is the vendored app; `overrides.extra_apps` are additional apps.
+  # The chatbot is absent when disabled, so `try()` reads the merged map
+  # uniformly. A `null` routing (an extra app with no `routing`) is a private
+  # worker with no listener rule.
+  apps_input = merge(
+    var.chatbot.enabled ? { chatbot = var.chatbot } : {},
+    var.overrides.extra_apps
+  )
+
   apps = {
-    for k, cfg in merge({ chatbot = {} }, var.overrides.apps) : k => {
+    for k, cfg in local.apps_input : k => {
       name                = k == "chatbot" ? var.app_name : k
       aws_region          = coalesce(try(cfg.aws_region, null), local.aws_region)
       image_url           = try(cfg.image_url, null)
-      build_path          = try(cfg.build_path, null)
+      dockerfile_path     = try(cfg.dockerfile_path, null)
       container_size      = try(cfg.container_size, "small")
       task_cpu            = coalesce(try(cfg.task_cpu, null), local.container_sizes[try(cfg.container_size, "small")].cpu)
       task_memory         = coalesce(try(cfg.task_memory, null), local.container_sizes[try(cfg.container_size, "small")].memory)
@@ -64,21 +70,19 @@ locals {
         collection_name = try(cfg.db_access.collection_name, null)
       }
 
-      # ecs-service always attaches a listener rule, so every app routes. The
-      # blessed app keeps the demo routing when the caller omits it; a second
-      # app must set a distinct listener_priority.
-      routing = try(cfg.routing, null) == null ? {
-        path_pattern      = ["/*"]
-        host_header       = []
-        listener_priority = 100
-        container_port    = 8001
-        } : {
+      # The chatbot's type defaults `routing` to the demo; an extra app with no
+      # `routing` stays null and gets no listener rule.
+      routing = try(cfg.routing, null) == null ? null : {
         path_pattern      = coalesce(try(cfg.routing.path_pattern, null), ["/*"])
         host_header       = coalesce(try(cfg.routing.host_header, null), [])
         listener_priority = coalesce(try(cfg.routing.listener_priority, null), 100)
         container_port    = coalesce(try(cfg.routing.container_port, null), 8001)
       }
     }
+  }
+
+  routing_apps = {
+    for k, app in local.apps : k => app if app.routing != null
   }
 
   container_sizes = {
@@ -187,16 +191,17 @@ locals {
     "EC2MetaDataSSRF_BODY",
   ]
 
-  http_edges = {
+  # One edge serves every routing app; no edge when every app is a worker.
+  http_edges = length(local.routing_apps) > 0 ? {
     main = {
       waf = {
         disabled                    = !var.features.waf || try(var.overrides.networking.main.waf_disabled, false)
-        common_rule_set_count_rules = local.chainlit_waf_count_rules
+        common_rule_set_count_rules = local.chatbot_app == null ? [] : local.chainlit_waf_count_rules
       }
       aliases             = coalesce(try(var.overrides.domain.aliases, null), [])
       acm_certificate_arn = try(var.overrides.domain.acm_certificate_arn, null)
     }
-  }
+  } : {}
 
   vpc_config = {
     create                   = var.overrides.byo_vpc == null
@@ -315,8 +320,10 @@ locals {
   }
 
   # --- App env ----------------------------------------------------------------
-  chatbot_app = local.apps["chatbot"]
-  app_env = {
+  # `chatbot_app` is null when the chatbot is disabled; `app_env` is then empty
+  # and only the chatbot's container env reads it.
+  chatbot_app = try(local.apps["chatbot"], null)
+  app_env = local.chatbot_app == null ? {} : {
     CHAINLIT_DEMO_USERNAME = "demo"
     MONGODB_DATABASE       = local.chatbot_app.db_access.database_name
     MONGODB_URI            = local.mongo_iam_connection_strings_by_region[local.chatbot_app.aws_region]
@@ -325,4 +332,8 @@ locals {
     AUTOEMBED_MODEL        = var.overrides.cluster.autoembed_model
     DOCUMENT_DIRS          = "/app/assets/document_dirs"
   }
+
+  # The debug database user borrows the first app's grant. The chatbot is the
+  # default source; with it disabled, the first extra app is used.
+  debug_app = local.chatbot_app != null ? local.chatbot_app : values(local.apps)[0]
 }

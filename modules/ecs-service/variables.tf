@@ -35,7 +35,7 @@ variable "iam" {
 }
 
 variable "routing" {
-  description = "ALB listener rule and target group. Matches modules/app-infra ecs_apps.routing plus health_check_path (example merge)."
+  description = "ALB listener rule and target group. Matches modules/app-infra ecs_apps.routing plus health_check_path (example merge). Null deploys a private worker with no target group or listener rule."
   type = object({
     listener_arn      = string
     listener_priority = number
@@ -44,19 +44,20 @@ variable "routing" {
     container_port    = optional(number, 8000)
     health_check_path = optional(string, "/health")
   })
+  default = null
 
   validation {
-    condition     = var.routing.listener_priority >= 1 && var.routing.listener_priority <= 50000
+    condition     = var.routing == null || (var.routing.listener_priority >= 1 && var.routing.listener_priority <= 50000)
     error_message = "routing.listener_priority must be between 1 and 50000."
   }
 
   validation {
-    condition     = var.routing.container_port >= 1 && var.routing.container_port <= 65535
+    condition     = var.routing == null || (var.routing.container_port >= 1 && var.routing.container_port <= 65535)
     error_message = "routing.container_port must be between 1 and 65535."
   }
 
   validation {
-    condition = (
+    condition = var.routing == null || (
       length(var.routing.path_pattern) > 0 ||
       length(var.routing.host_header) > 0
     )

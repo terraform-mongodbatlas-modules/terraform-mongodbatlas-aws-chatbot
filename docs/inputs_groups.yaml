@@ -16,6 +16,13 @@ sections:
         - llm
         - extra_tags
 
+  - id: chatbot
+    title: "Chatbot"
+    level: 2
+    match:
+      names:
+        - chatbot
+
   - id: content
     title: "Content Variables"
     level: 2

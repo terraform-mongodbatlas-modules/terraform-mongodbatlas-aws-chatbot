@@ -19,8 +19,8 @@ output "ecs_log_group_name" {
 }
 
 output "target_group_arn" {
-  description = "ALB target group ARN for this app."
-  value       = aws_lb_target_group.this.arn
+  description = "ALB target group ARN for this app. Null for a private worker."
+  value       = var.routing == null ? null : aws_lb_target_group.this[0].arn
 }
 
 output "task_definition_arn" {
@@ -29,13 +29,13 @@ output "task_definition_arn" {
 }
 
 output "container_port" {
-  description = "ALB target group and container port."
-  value       = var.routing.container_port
+  description = "ALB target group and container port. Null for a private worker."
+  value       = var.routing == null ? null : var.routing.container_port
 }
 
 output "health_check_path" {
-  description = "Target group health check path."
-  value       = var.routing.health_check_path
+  description = "Target group health check path. Null for a private worker."
+  value       = var.routing == null ? null : var.routing.health_check_path
 }
 
 output "index_run" {

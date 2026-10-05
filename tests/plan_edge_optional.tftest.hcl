@@ -105,30 +105,88 @@ override_module {
 
 variables {
   app_name = "mongodb-chatbot-demo"
-  overrides = {
-    extra_apps = {
-      api = {
-        routing = {
-          path_pattern      = ["/api/*"]
-          listener_priority = 200
+}
+
+run "worker_only_apps_create_no_edge" {
+  command = plan
+
+  variables {
+    chatbot = { enabled = false }
+    overrides = {
+      extra_apps = {
+        worker = {}
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      length(local.routing_apps) == 0,
+      length(module.app_infra.aws.http_edges) == 0,
+      module.app_infra.https_url == null,
+      output.chatbot == null,
+      output.chatbot_login_password == null,
+      output.https_url == null,
+      length(output.extra_apps) == 1,
+      output.extra_apps["worker"].https_url == null,
+      output.extra_apps["worker"].path_pattern == null,
+    ])
+    error_message = "A worker-only app set should skip the ALB, CloudFront, and WAF and expose a null URL"
+  }
+}
+
+run "disabled_chatbot_outputs_are_null" {
+  command = plan
+
+  variables {
+    chatbot = { enabled = false }
+    overrides = {
+      extra_apps = {
+        api = {
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
         }
       }
     }
   }
-}
-
-run "two_apps_route_by_path_on_one_edge" {
-  command = plan
 
   assert {
     condition = alltrue([
       length(module.app_infra.aws.http_edges) == 1,
-      module.app_infra.ecs_apps["chatbot"].routing.edge == "main",
-      module.app_infra.ecs_apps["api"].routing.edge == "main",
-      module.app_infra.ecs_apps["chatbot"].routing.listener_priority == 100,
-      module.app_infra.ecs_apps["api"].routing.listener_priority == 200,
-      module.app_infra.ecs_apps["api"].routing.path_pattern == tolist(["/api/*"]),
+      output.chatbot == null,
+      output.chatbot_login_password == null,
+      startswith(output.https_url, "https://"),
+      output.extra_apps["api"].https_url == output.https_url,
+      output.extra_apps["api"].path_pattern == tolist(["/api/*"]),
     ])
-    error_message = "Two apps with distinct path patterns and priorities should attach to one shared edge"
+    error_message = "Disabling the chatbot should null its outputs and keep the edge for the routing extra app"
   }
+}
+
+run "disabled_chatbot_without_extra_apps_fails" {
+  command = plan
+
+  variables {
+    chatbot = { enabled = false }
+  }
+
+  expect_failures = [var.overrides]
+}
+
+run "verify_requires_the_chatbot" {
+  command = plan
+
+  variables {
+    features = { verify_deployment_ready = true }
+    chatbot  = { enabled = false }
+    overrides = {
+      extra_apps = {
+        worker = {}
+      }
+    }
+  }
+
+  expect_failures = [var.features]
 }

@@ -1,28 +1,36 @@
 output "https_url" {
-  description = "CloudFront HTTPS URL for the app."
-  value       = module.app_infra.aws.http_edges["main"].https_url
+  description = "CloudFront HTTPS URL for the HTTP edge. Null when no app routes."
+  value       = module.app_infra.https_url
 }
 
-output "chainlit_demo_username" {
-  description = "Demo login username."
-  value       = "demo"
+output "chatbot" {
+  description = "The chat app's URL, image, login, and build result. Null when chatbot.enabled is false."
+  value = local.chatbot_app == null ? null : {
+    enabled        = true
+    https_url      = module.app_infra.https_url
+    image_uri      = "${local.app_image["chatbot"].ecr_repository_url}:${local.app_image["chatbot"].image_tag}"
+    login_username = "demo"
+    secret_name    = aws_secretsmanager_secret.app["chatbot"].name
+    image_build    = try(jsondecode(data.local_file.build_info["chatbot"].content), null)
+  }
 }
 
-output "chainlit_demo_password" {
-  description = "Demo login password (also in the app secret)."
-  value       = random_password.chainlit_demo.result
+output "chatbot_login_password" {
+  description = "Demo login password (also in the app secret). Null when chatbot.enabled is false."
+  value       = local.chatbot_app == null ? null : random_password.chainlit_demo.result
   sensitive   = true
 }
 
-output "ecr_repository_url" {
-  description = "ECR repository URL the module builds the app image into. Null when features.ecr is false."
-  value       = var.features.ecr ? module.app_infra.ecs_apps["chatbot"].ecr_repository_url : null
-}
-
-output "image_build" {
-  description = "CodeBuild result per built app: status, tag, duration, and log link."
+output "extra_apps" {
+  description = "Per-app URL, path, image, and build result for overrides.extra_apps."
   value = {
-    for k, file in data.local_file.build_info : k => jsondecode(file.content)
+    for k, app in var.overrides.extra_apps : k => {
+      https_url    = module.app_infra.https_url
+      path_pattern = try(local.apps[k].routing.path_pattern, null)
+      image_uri    = "${local.app_image[k].ecr_repository_url}:${local.app_image[k].image_tag}"
+      secret_name  = aws_secretsmanager_secret.app[k].name
+      image_build  = try(jsondecode(data.local_file.build_info[k].content), null)
+    }
   }
 }
 

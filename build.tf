@@ -61,8 +61,13 @@ locals {
 data "archive_file" "app" {
   for_each = local.build_apps
 
-  type        = "zip"
-  source_dir  = coalesce(each.value.build_path, "${path.module}/chatbot")
+  type = "zip"
+  # A caller's dockerfile_path names the Dockerfile; its directory is the build
+  # context. The vendored app builds from chatbot/.
+  source_dir = coalesce(
+    each.value.dockerfile_path == null ? null : dirname(each.value.dockerfile_path),
+    "${path.module}/chatbot"
+  )
   output_path = "${path.module}/.build/${each.key}/app.zip"
 
   # The vendored tree carries local build state on disk; without excludes the
