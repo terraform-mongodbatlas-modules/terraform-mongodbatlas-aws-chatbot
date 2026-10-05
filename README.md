@@ -94,8 +94,8 @@ The following resources are used by this module:
 - [aws_security_group_rule.atlas_pl_ingress_from_app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) (resource)
 - [mongodbatlas_database_user.ecs](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/database_user) (resource)
 - [mongodbatlas_database_user.public_debug](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/resources/database_user) (resource)
-- [random_password.chainlit_auth](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
-- [random_password.chainlit_demo](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
+- [random_password.chatbot_auth](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
+- [random_password.chatbot_demo_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [random_password.public_debug](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [terraform_data.build](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
 - [terraform_data.render_assets](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
@@ -163,7 +163,7 @@ Opt-in deployment features. The defaults produce a private, tagged demo:
 - `atlas_byok`: create a customer-managed KMS key and enable Atlas encryption at rest with it.
 - `atlas_s3_log_export`: export Atlas logs to a module-managed S3 bucket.
 - `atlas_s3_backup_export`: export Atlas backups to a module-managed S3 bucket.
-- `debug_access_for_cluster`: add a caller IP to the project access list and create a full-access database user.
+- `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's grant, or `readWrite` on `hybrid_search` when there are no apps.
 - `verify_deployment_ready`: poll `/health` from the apply and fail on a timeout.
 
 Type:

@@ -334,6 +334,16 @@ locals {
   }
 
   # The debug database user borrows the first app's grant. The chatbot is the
-  # default source; with it disabled, the first extra app is used.
-  debug_app = local.chatbot_app != null ? local.chatbot_app : values(local.apps)[0]
+  # default source; with it disabled, the first extra app is used. With no apps
+  # at all, fall back to the module's default grant so the caller can still
+  # connect to the cluster.
+  debug_db_access = (
+    local.chatbot_app != null ? local.chatbot_app.db_access :
+    length(local.apps) > 0 ? values(local.apps)[0].db_access :
+    {
+      database_name   = "hybrid_search"
+      role_name       = "readWrite"
+      collection_name = null
+    }
+  )
 }

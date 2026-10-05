@@ -2,12 +2,14 @@
 # assembled here from the app-infra output, so one apply wires the app end to
 # end.
 
-resource "random_password" "chainlit_auth" {
+resource "random_password" "chatbot_auth" {
+  count   = var.chatbot.enabled ? 1 : 0
   length  = 64
   special = false
 }
 
-resource "random_password" "chainlit_demo" {
+resource "random_password" "chatbot_demo_password" {
+  count   = var.chatbot.enabled ? 1 : 0
   length  = 16
   special = false
 }
@@ -43,8 +45,8 @@ resource "aws_secretsmanager_secret_version" "app" {
       }
     },
     each.key == "chatbot" ? {
-      CHAINLIT_AUTH_SECRET   = random_password.chainlit_auth.result
-      CHAINLIT_DEMO_PASSWORD = random_password.chainlit_demo.result
+      CHAINLIT_AUTH_SECRET   = try(random_password.chatbot_auth[0].result, null)
+      CHAINLIT_DEMO_PASSWORD = try(random_password.chatbot_demo_password[0].result, null)
     } : {},
     module.llm.secrets
   ))

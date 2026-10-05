@@ -17,7 +17,7 @@ output "chatbot" {
 
 output "chatbot_login_password" {
   description = "Demo login password (also in the app secret). Null when chatbot.enabled is false."
-  value       = local.chatbot_app == null ? null : random_password.chainlit_demo.result
+  value       = local.chatbot_app == null ? null : try(random_password.chatbot_demo_password[0].result, null)
   sensitive   = true
 }
 

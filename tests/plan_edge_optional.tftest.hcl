@@ -165,14 +165,24 @@ run "disabled_chatbot_outputs_are_null" {
   }
 }
 
-run "disabled_chatbot_without_extra_apps_fails" {
+run "disabled_chatbot_without_extra_apps_plans" {
   command = plan
 
   variables {
     chatbot = { enabled = false }
   }
 
-  expect_failures = [var.overrides]
+  assert {
+    condition = alltrue([
+      length(local.apps) == 0,
+      length(module.app_infra.aws.http_edges) == 0,
+      output.chatbot == null,
+      output.chatbot_login_password == null,
+      output.https_url == null,
+      length(output.extra_apps) == 0,
+    ])
+    error_message = "A chatbot-disabled deployment with no extra apps should plan an infra-only stack with null outputs"
+  }
 }
 
 run "verify_requires_the_chatbot" {

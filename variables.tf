@@ -42,7 +42,7 @@ variable "features" {
     - `atlas_byok`: create a customer-managed KMS key and enable Atlas encryption at rest with it.
     - `atlas_s3_log_export`: export Atlas logs to a module-managed S3 bucket.
     - `atlas_s3_backup_export`: export Atlas backups to a module-managed S3 bucket.
-    - `debug_access_for_cluster`: add a caller IP to the project access list and create a full-access database user.
+    - `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's grant, or `readWrite` on `hybrid_search` when there are no apps.
     - `verify_deployment_ready`: poll `/health` from the apply and fail on a timeout.
   EOT
   type = object({
@@ -319,11 +319,6 @@ variable "overrides" {
       var.overrides.domain.acm_certificate_arn != null
     )
     error_message = "overrides.domain.acm_certificate_arn is required when overrides.domain.aliases is set."
-  }
-
-  validation {
-    condition     = var.chatbot.enabled || length(var.overrides.extra_apps) > 0
-    error_message = "overrides.extra_apps must be non-empty when chatbot.enabled is false."
   }
 
   validation {

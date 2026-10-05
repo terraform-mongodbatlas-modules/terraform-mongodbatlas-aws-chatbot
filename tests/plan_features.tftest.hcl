@@ -265,3 +265,22 @@ run "debug_access_uses_allowed_ip_override" {
     error_message = "overrides.allowed_ip should be used instead of resolving the caller IP"
   }
 }
+
+run "debug_access_without_apps_plans" {
+  command = plan
+
+  variables {
+    chatbot  = { enabled = false }
+    features = { debug_access_for_cluster = true }
+  }
+
+  assert {
+    condition = alltrue([
+      length(local.apps) == 0,
+      length(mongodbatlas_database_user.public_debug) == 1,
+      local.debug_db_access.role_name == "readWrite",
+      local.debug_db_access.database_name == "hybrid_search",
+    ])
+    error_message = "Debug access with no apps should create the debug user with the default grant"
+  }
+}
