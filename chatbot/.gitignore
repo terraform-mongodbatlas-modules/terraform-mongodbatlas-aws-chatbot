@@ -10,3 +10,9 @@
 __pycache__/
 *.pyc
 *.egg-info/
+
+# Chainlit copies its packaged translations and creates an upload dir under the
+# config root (assets/) on first run. Only assets/.chainlit/config.toml is app
+# content; the rest is runtime state and must not be committed.
+/assets/.chainlit/translations/
+/assets/.files/

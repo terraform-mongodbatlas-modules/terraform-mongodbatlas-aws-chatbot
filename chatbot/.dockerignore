@@ -6,3 +6,7 @@ secrets
 lz
 app
 dist
+# Chainlit runtime files under the config root (assets/); a local test run must
+# not bake them into the image.
+assets/.chainlit/translations
+assets/.files
