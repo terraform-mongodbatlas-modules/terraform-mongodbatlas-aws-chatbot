@@ -175,3 +175,26 @@ run "built_in_tags_reach_the_composed_modules" {
     error_message = "The built-in Example and Name tags should be present by default"
   }
 }
+
+run "bare_document_name_resolves_to_the_bundled_corpus" {
+  command = plan
+
+  variables {
+    document_dirs = ["why-mongodb-for-agents.md"]
+  }
+
+  assert {
+    condition     = length(var.document_dirs) == 1
+    error_message = "A bare document_dirs name should validate against the bundled corpus"
+  }
+}
+
+run "missing_document_entry_fails" {
+  command = plan
+
+  variables {
+    document_dirs = ["does-not-exist.md"]
+  }
+
+  expect_failures = [var.document_dirs]
+}

@@ -65,9 +65,41 @@ variable "queries" {
 }
 
 variable "document_dirs" {
-  description = "Directories of documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it."
+  description = <<-EOT
+    Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. Each entry resolves one of three ways:
+
+    - A bare name (no slash) resolves to the bundled corpus, for example `why-mongodb-for-agents.md`.
+    - A path with a slash resolves relative to the working directory, for example `./docs/handbook/`.
+    - An absolute path is used as-is.
+  EOT
   type        = list(string)
   default     = []
+
+  # A bare name must exist in the bundled corpus. `fileset` is lenient about a
+  # missing path (it returns an empty set), and `fileexists` errors on a
+  # directory, so check a non-empty directory tree or a file.
+  validation {
+    condition = alltrue([
+      for entry in var.document_dirs :
+      strcontains(entry, "/") || (
+        length(fileset("${path.module}/chatbot/assets/document_dirs/${entry}", "**")) > 0 ||
+        try(fileexists("${path.module}/chatbot/assets/document_dirs/${entry}"), false)
+      )
+    ])
+    error_message = "Each bare document_dirs name must exist in the bundled corpus (chatbot/assets/document_dirs/)."
+  }
+
+  # A path must exist relative to the working directory, or be absolute.
+  validation {
+    condition = alltrue([
+      for entry in var.document_dirs :
+      !strcontains(entry, "/") || (
+        length(fileset(entry, "**")) > 0 ||
+        try(fileexists(entry), false)
+      )
+    ])
+    error_message = "Each document_dirs path must exist relative to the working directory or as an absolute path."
+  }
 }
 
 variable "assets_dir" {

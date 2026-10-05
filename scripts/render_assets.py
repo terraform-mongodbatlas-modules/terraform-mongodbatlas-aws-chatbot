@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -45,13 +46,27 @@ def render_queries(staging: Path, queries: dict[str, str]) -> None:
     (staging / "demo_queries.yaml").write_text("\n".join(lines) + "\n")
 
 
-def replace_document_dirs(staging: Path, entries: list[str]) -> None:
+def resolve_document_entry(entry: str, vendored_document_dirs: Path) -> Path:
+    """Resolve one `document_dirs` entry.
+
+    A bare name (no path separator) resolves against the vendored corpus, so a
+    caller can name a bundled file. A path with a separator resolves relative to
+    the working directory; an absolute path is used as-is.
+    """
+    if os.path.isabs(entry) or "/" in entry or "\\" in entry:
+        return Path(entry)
+    return vendored_document_dirs / entry
+
+
+def replace_document_dirs(staging: Path, entries: list[str], vendored_document_dirs: Path) -> None:
     target = staging / "document_dirs"
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
     for entry in entries:
-        source = Path(entry)
+        source = resolve_document_entry(entry, vendored_document_dirs)
+        if not source.exists():
+            raise SystemExit(f"document_dirs entry not found: {entry} (resolved to {source})")
         if source.is_dir():
             shutil.copytree(source, target / source.name)
         else:
@@ -77,7 +92,7 @@ def main() -> None:
 
     document_dirs = decode_json(args.document_dirs_b64)
     if document_dirs:
-        replace_document_dirs(staging, document_dirs)
+        replace_document_dirs(staging, document_dirs, vendored / "document_dirs")
 
     if args.assets_dir:
         overlay = Path(args.assets_dir)

@@ -220,7 +220,11 @@ Default: `{}`
 
 ### document_dirs
 
-Directories of documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it.
+Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. Each entry resolves one of three ways:
+
+- A bare name (no slash) resolves to the bundled corpus, for example `why-mongodb-for-agents.md`.
+- A path with a slash resolves relative to the working directory, for example `./docs/handbook/`.
+- An absolute path is used as-is.
 
 Type: `list(string)`
 
