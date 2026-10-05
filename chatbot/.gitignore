@@ -1,0 +1,12 @@
+# Local caches and runtime files for the vendored app. Anchored paths keep the
+# tracked assets/.chainlit/config.toml and the assets/ defaults in the tree.
+/.venv/
+/.chainlit/
+/.files/
+/.pytest_cache/
+/.ruff_cache/
+/scripts/cache/
+/dist/
+__pycache__/
+*.pyc
+*.egg-info/

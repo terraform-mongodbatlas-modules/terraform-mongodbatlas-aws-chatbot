@@ -1,0 +1,47 @@
+# Tests for the vendored hybrid-search app at `chatbot/`. The app keeps
+# `just unit-test` and `just integration-test`; the integration target owns the
+# Atlas Local container, so CI never calls teardown. The Voyage key and endpoint
+# are needed for the autoEmbed index and vector search; without them those
+# assertions cannot pass.
+#
+# Required repository secret:
+#   VOYAGE_API_KEY  embedding key the Atlas Local container uses at index and query time
+# Required repository variable:
+#   EMBEDDING_PROVIDER_ENDPOINT  Voyage embeddings endpoint (the wrapper appends /v1/embeddings)
+name: Chatbot App Tests
+
+on:
+  push:
+    paths:
+      - "chatbot/**"
+      - ".github/workflows/app-tests.yml"
+  pull_request:
+    paths:
+      - "chatbot/**"
+      - ".github/workflows/app-tests.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  chatbot-app-tests:
+    name: chatbot-app-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: chatbot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: "true"
+          uv: "true"
+      - name: Unit tests
+        run: just unit-test
+      - name: Integration tests
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          EMBEDDING_PROVIDER_ENDPOINT: ${{ vars.EMBEDDING_PROVIDER_ENDPOINT }}
+        run: just integration-test

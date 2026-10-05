@@ -1,0 +1,22 @@
+default:
+    @just --list
+
+scripts_dir := justfile_directory() + "/scripts"
+
+# Offline unit tier: the integration tier is excluded and skipped without MONGODB_URI.
+unit-test:
+    uv run --extra ui pytest --ignore=src/hybrid_search/integration
+
+# Local integration tier: reuse or start the Atlas Local container, create indexes, run pytest.
+# The container and its database are kept, so a re-run skips the index build.
+# --force-new re-creates the container; --clean drops the test database first.
+integration-test *args:
+    uv run --extra ui python "{{ scripts_dir }}/run_integration.py" {{ args }}
+
+# Delete the Atlas Local container behind integration-test.
+teardown-integration:
+    uv run python "{{ scripts_dir }}/run_integration.py" --teardown
+
+# Live /health smoke against a deployed stack (reads the module output or HYBRID_SEARCH_URL).
+public-test:
+    uv run python "{{ scripts_dir }}/public_test.py"

@@ -1,0 +1,146 @@
+from __future__ import annotations
+
+import inspect
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from motor.motor_asyncio import AsyncIOMotorCollection
+from pymongo import ReplaceOne
+
+from hybrid_search import extract as extract_module
+from hybrid_search.settings import HybridSearchSettings
+
+
+@dataclass(frozen=True)
+class IngestResult:
+    chunk_count: int
+
+
+@dataclass(frozen=True)
+class IngestedFile:
+    file_path: str
+    chunk_count: int
+
+    @property
+    def display_name(self) -> str:
+        return Path(self.file_path).name
+
+
+@dataclass(frozen=True)
+class DeleteResult:
+    file_path: str
+    chunk_count: int
+
+
+def chunk_doc_id(file_path: str, chunk_index: int) -> str:
+    return f"{file_path}#{chunk_index}"
+
+
+OnProgress = Callable[[str], Any]
+
+
+async def list_ingested_files(collection: AsyncIOMotorCollection) -> list[IngestedFile]:
+    pipeline = [
+        {"$group": {"_id": "$file_path", "chunk_count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+    cursor = collection.aggregate(pipeline)
+    docs = await cursor.to_list(length=None)
+    return [
+        IngestedFile(file_path=doc["_id"], chunk_count=doc["chunk_count"])
+        for doc in docs
+        if doc.get("_id")
+    ]
+
+
+async def ingested_display_names(collection: AsyncIOMotorCollection) -> set[str]:
+    file_paths = await collection.distinct("file_path")
+    return {Path(path).name for path in file_paths if path}
+
+
+def skip_reason_for_filename(
+    name: str,
+    *,
+    ingested: set[str],
+    batch: set[str],
+) -> str | None:
+    if name in ingested or name in batch:
+        return "already ingested"
+    return None
+
+
+async def delete_by_file_path(
+    file_path: str,
+    *,
+    collection: AsyncIOMotorCollection,
+    state_collection: AsyncIOMotorCollection,
+) -> DeleteResult:
+    result = await collection.delete_many({"file_path": file_path})
+    await state_collection.delete_many({"_id": file_path})
+    return DeleteResult(file_path=file_path, chunk_count=result.deleted_count)
+
+
+async def delete_all_chunks(
+    *,
+    collection: AsyncIOMotorCollection,
+    state_collection: AsyncIOMotorCollection,
+) -> int:
+    result = await collection.delete_many({})
+    await state_collection.delete_many({})
+    return result.deleted_count
+
+
+async def ingest_file(
+    path: Path,
+    *,
+    settings: HybridSearchSettings,
+    collection: AsyncIOMotorCollection,
+    source_name: str | None = None,
+    on_progress: OnProgress | None = None,
+) -> IngestResult:
+    chunks = extract_module.extract_chunks(path, max_tokens=settings.chunk_max_tokens)
+    file_path = source_name or str(path)
+    total = 0
+    if chunks:
+        ops = _upsert_ops(file_path, chunks)
+        await collection.bulk_write(ops, ordered=False)
+        await _emit_progress(on_progress, f"Stored {len(ops)} chunks")
+        total = len(ops)
+    if on_progress is not None:
+        await _emit_progress(on_progress, "Completed processing file")
+    return IngestResult(chunk_count=total)
+
+
+async def _emit_progress(on_progress: OnProgress | None, message: str) -> None:
+    if on_progress is None:
+        return
+    result = on_progress(message)
+    if inspect.isawaitable(result):
+        await result
+
+
+def _upsert_ops(
+    file_path: str,
+    chunks: list[extract_module.Chunk],
+) -> list[ReplaceOne]:
+    ops: list[ReplaceOne] = []
+    for chunk_index, chunk in enumerate(chunks):
+        if not chunk.text.strip():
+            continue
+        doc_id = chunk_doc_id(file_path, chunk_index)
+        doc: dict[str, Any] = {
+            "_id": doc_id,
+            "content": chunk.text,
+            "file_path": file_path,
+            "chunk_index": chunk_index,
+        }
+        if chunk.page is not None:
+            doc["page"] = chunk.page
+        if chunk.start_line is not None:
+            doc["start_line"] = chunk.start_line
+        if chunk.end_line is not None:
+            doc["end_line"] = chunk.end_line
+        ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+    return ops
