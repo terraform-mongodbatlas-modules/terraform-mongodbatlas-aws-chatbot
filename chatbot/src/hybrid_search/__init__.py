@@ -1,3 +1,4 @@
+from hybrid_search.chainlit_root import ensure_chainlit_app_root
 from hybrid_search.generate import generate_answer, unique_source_files
 from hybrid_search.indexes import (
     create_chunks_indexes_if_missing,
@@ -20,3 +21,10 @@ __all__ = [
     "unique_source_files",
     "wait_chunks_indexes_ready",
 ]
+
+# Chainlit reads CHAINLIT_APP_ROOT when chainlit.config is first imported and falls
+# back to the working directory when it is unset. Set it here so any import of the
+# package (for example pytest collecting the ui tests, which import chainlit before
+# hybrid_search.app) reads assets/ instead of scaffolding a .chainlit/ directory into
+# the working directory. app.py keeps its own call so the server path is explicit.
+ensure_chainlit_app_root()
