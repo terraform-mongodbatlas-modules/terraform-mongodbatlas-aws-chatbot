@@ -1,4 +1,4 @@
-# MongoDB AI risk
+# MongoDB for AI agents
 
 Click **Upload documents** or the composer **Ingest** button, then try a starter question. After ingest, use the composer **Demo** button to show the questions again. **Cancel** returns to ordinary search.
 
