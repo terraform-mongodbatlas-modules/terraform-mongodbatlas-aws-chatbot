@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required to assume the AWS role via GitHub OIDC
 
 jobs:
   # === DO_NOT_EDIT: path-sync job-check ===
@@ -101,6 +100,9 @@ jobs:
       MONGODB_ATLAS_CLIENT_SECRET: ${{ secrets.MONGODB_ATLAS_CLIENT_SECRET }}
       MONGODB_ATLAS_BASE_URL: ${{ secrets.MONGODB_ATLAS_BASE_URL }}
       AWS_REGION: ${{ vars.AWS_REGION }}
+    permissions:
+      contents: read
+      id-token: write # required to assume the AWS role via GitHub OIDC
     # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

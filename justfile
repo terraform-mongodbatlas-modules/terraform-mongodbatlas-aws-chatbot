@@ -12,6 +12,10 @@ py := "PYTHONPATH=" + gh_dir + " " + uv_gh + " python -m"
 default:
     just --list
 # === OK_EDIT: path-sync core ===
+# Pass recipe arguments to recipe lines as shell positional parameters, so
+# variadic recipes can forward "$@" verbatim instead of interpolating text
+# into the command line, where the shell re-parses it.
+set positional-arguments := true
 # === DO_NOT_EDIT: path-sync checks ===
 # CHECKS
 pre-commit: fmt py-check validate-versions-tf validate lint check-docs
@@ -283,4 +287,4 @@ public-test *args:
     python3 {{justfile_directory()}}/scripts/health_poll.py "$@"
 
 plan-snapshot-test-chatbot *args:
-    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" {{args}}
+    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" "$@"

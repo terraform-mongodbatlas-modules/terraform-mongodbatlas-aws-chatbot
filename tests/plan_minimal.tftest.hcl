@@ -209,13 +209,13 @@ run "extra_tags_merge_over_the_built_ins" {
   command = plan
 
   variables {
-    extra_tags = { Owner = "demo" }
+    extra_tags = { Owner = "demo", Name = "custom-name" }
   }
 
   assert {
     condition = alltrue([
       local.tags["Owner"] == "demo",
-      local.tags["Name"] == "mongodb-chatbot-demo",
+      local.tags["Name"] == "custom-name",
       local.tags["Example"] == "atlas-aws-chatbot",
     ])
     error_message = "extra_tags should merge over the built-in Name and Example tags"
