@@ -60,3 +60,33 @@ def test_mode_to_ui_mode_mapping():
     assert chat_module._mode_to_ui_mode(Mode.INGEST) == "ingest"
     assert chat_module._mode_to_ui_mode(Mode.DELETE) == "delete"
     assert chat_module._mode_to_ui_mode(Mode.DEMO) == "query"
+
+
+@pytest.mark.asyncio
+async def test_handle_query_surfaces_failure_description(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", object())
+    session.set("collection", object())
+    sent: list[str] = []
+
+    class _FakeMessage:
+        def __init__(self, content: str = "") -> None:
+            self.content = content
+
+        async def send(self) -> None:
+            sent.append(self.content)
+
+    async def fake_index_states(collection, settings):
+        return []
+
+    async def fake_run_query_with_steps(*args, **kwargs):
+        raise RuntimeError("Unable to locate credentials")
+
+    monkeypatch.setattr(chat_module, "index_states", fake_index_states)
+    monkeypatch.setattr(chat_module, "problem_message", lambda states, query: None)
+    monkeypatch.setattr(chat_module, "run_query_with_steps", fake_run_query_with_steps)
+    monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
+
+    await chat_module._handle_query("risk")
+
+    assert sent == ["Query failed: Unable to locate credentials"]

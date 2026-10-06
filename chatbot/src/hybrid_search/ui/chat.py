@@ -206,9 +206,15 @@ async def _handle_query(query: str):
     if message := problem_message(states, query=True):
         await cl.Message(content=message).send()
         return
-    result = await run_query_with_steps(
-        query, settings=settings, collection=collection, modes=modes
-    )
+    # Surface the failure in the UI instead of a blank reply.
+    try:
+        result = await run_query_with_steps(
+            query, settings=settings, collection=collection, modes=modes
+        )
+    except Exception as exc:
+        logger.exception("Query failed")
+        await cl.Message(content=f"Query failed: {exc}").send()
+        return
     if not result.answer:
         return
     if result.source_files:
