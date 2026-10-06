@@ -20,3 +20,22 @@ teardown-integration:
 # Live /health smoke against a deployed stack (reads the module output or HYBRID_SEARCH_URL).
 public-test:
     python3 "{{ justfile_directory() }}/../scripts/health_poll.py"
+
+# Dump gitignored secrets/.env.local for docker-compose.local-ui.yml (needs features.debug_access_for_cluster; SKIP_INDEX_CREATION=false).
+# terraform_dir defaults to the directory just was invoked from, so a live workspace outside the repo works.
+dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.env.local":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script="{{ justfile_directory() }}/scripts/dump_local_env.py"
+    out="{{ justfile_directory() }}/{{ output }}"
+    if [[ -n "{{ region }}" ]]; then
+      python3 "${script}" --terraform-dir "{{ terraform_dir }}" --output "${out}" --region "{{ region }}"
+    else
+      python3 "${script}" --terraform-dir "{{ terraform_dir }}" --output "${out}"
+    fi
+    echo
+    echo "Run the UI locally:"
+    compose="{{ justfile_directory() }}/docker-compose.local-ui.yml"
+    echo "  docker compose -f ${compose} --env-file ${out} up --build"
+    echo
+    echo "Open http://localhost:8001"
