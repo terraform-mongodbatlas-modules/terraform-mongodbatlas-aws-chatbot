@@ -1,0 +1,19 @@
+advanced_configuration:
+  default_write_concern: majority
+  javascript_enabled: false
+  minimum_enabled_tls_protocol: TLS1_3
+backup_enabled: true
+cluster_type: SHARDED
+config_server_management_mode: ATLAS_MANAGED
+delete_on_create_timeout: true
+encryption_at_rest_provider: NONE
+name: mongodb-chatbot-demo
+pit_enabled: true
+redact_client_log_data: true
+retain_backups_enabled: true
+tags:
+  Example: atlas-aws-chatbot
+  Name: mongodb-chatbot-demo
+  mongodb-env: dev
+  mongodb-owner: owner@example.com
+version_release_system: CONTINUOUS

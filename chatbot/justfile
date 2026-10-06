@@ -19,4 +19,4 @@ teardown-integration:
 
 # Live /health smoke against a deployed stack (reads the module output or HYBRID_SEARCH_URL).
 public-test:
-    uv run python "{{ scripts_dir }}/public_test.py"
+    python3 "{{ justfile_directory() }}/../scripts/health_poll.py"

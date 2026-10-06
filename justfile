@@ -241,8 +241,9 @@ dev-vars-org org_id:
     {{py}} dev.dev_vars org {{org_id}}
 # === OK_EDIT: path-sync dev-vars-org ===
 
-dev-vars-chatbot org_id:
-    {{py}} dev.dev_vars chatbot {{org_id}}
+# Write tests/workspace_chatbot_examples/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
+dev-vars-chatbot env="dev" owner="owner@example.com":
+    {{py}} dev.dev_vars chatbot {{env}} {{owner}}
 # === DO_NOT_EDIT: path-sync regions ===
 # REGION EXTRACTION (for CSP modules with region mappings)
 extract-regions provider *args: # use --output-dir to specify the output directory
@@ -274,3 +275,12 @@ dependabot-sdlc-triage:
     # Reconcile Dependabot SDLC triage labels and guidance comments.
     {{py}} shared.dependabot_sdlc_triage
 # === OK_EDIT: path-sync sdlc-validate ===
+
+# LIVE SMOKE
+# Poll /health on a deployed stack. Stdlib only; reads the module output at the
+# workspace given by --module-dir, else HYBRID_SEARCH_URL.
+public-test *args:
+    python3 {{justfile_directory()}}/scripts/health_poll.py "$@"
+
+plan-snapshot-test-chatbot *args:
+    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" {{args}}

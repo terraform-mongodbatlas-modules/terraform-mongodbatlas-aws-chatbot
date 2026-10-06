@@ -30,6 +30,7 @@ Run 'just gen-readme' to regenerate. -->
 
 Feature | Name
 --- | ---
+Chatbot | [Minimal deployment](./examples/minimal)
 
 <!-- END_TABLES -->
 

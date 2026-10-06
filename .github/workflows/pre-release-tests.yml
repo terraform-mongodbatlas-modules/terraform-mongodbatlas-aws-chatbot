@@ -93,11 +93,16 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - run: just dev-vars-chatbot "${MONGODB_ATLAS_ORG_ID}"
+      - name: Write the workspace tags
+        run: just dev-vars-chatbot "${{ inputs.atlas_cloud_env }}" "${{ vars.MONGODB_OWNER }}"
       - name: Apply examples
         env:
           INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
         run: just apply-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+      # No separate smoke step: the example sets features.verify_deployment_ready,
+      # so the apply itself polls /health until data_ingested and indexes_ready are
+      # true. The app integration tier covers ingest, read, delete, and update
+      # against Atlas Local.
       # === DO_NOT_EDIT: path-sync job-import-validate ===
       - name: Import validate examples
         env:

@@ -130,13 +130,15 @@ run "built_image_resolves_to_the_module_repository" {
 run "outputs_expose_the_public_contract" {
   command = plan
 
+  # `output.chatbot.image_uri` embeds `local.image_tags`, which is unknown at plan:
+  # `data.archive_file.app` depends on `terraform_data.prepare_build_dirs`, so the
+  # read defers to apply. The image tag is not asserted at plan for that reason.
   assert {
     condition = alltrue([
       startswith(output.https_url, "https://"),
       strcontains(output.https_url, "cloudfront.net"),
       output.chatbot.enabled == true,
       output.chatbot.login_username == "demo",
-      output.chatbot.image_uri == "${module.app_infra.ecs_apps["chatbot"].ecr_repository_url}:${local.image_tags["chatbot"]}",
       output.chatbot_login_password == "test-password",
       length(output.extra_apps) == 0,
       output.connection_string_public == null,
@@ -179,4 +181,43 @@ run "missing_document_entry_fails" {
   }
 
   expect_failures = [var.document_dirs]
+}
+
+run "queries_move_the_assets_hash" {
+  command = plan
+
+  variables {
+    queries = {
+      "Why one database" = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
+    }
+  }
+
+  # The hash drives the image tag, so a change to queries must move it and start
+  # one build. Compare against the same formula with empty queries.
+  assert {
+    condition = local.assets_content_hash != sha256(jsonencode({
+      vendored       = local.vendored_assets_hash
+      queries        = {}
+      document_dirs  = var.document_dirs
+      override_files = local.assets_override_file_hashes
+    }))
+    error_message = "Setting queries should move local.assets_content_hash"
+  }
+}
+
+run "extra_tags_merge_over_the_built_ins" {
+  command = plan
+
+  variables {
+    extra_tags = { Owner = "demo" }
+  }
+
+  assert {
+    condition = alltrue([
+      local.tags["Owner"] == "demo",
+      local.tags["Name"] == "mongodb-chatbot-demo",
+      local.tags["Example"] == "atlas-aws-chatbot",
+    ])
+    error_message = "extra_tags should merge over the built-in Name and Example tags"
+  }
 }
