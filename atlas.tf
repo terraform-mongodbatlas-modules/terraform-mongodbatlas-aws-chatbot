@@ -115,9 +115,7 @@ module "atlas_cluster" {
   tags                        = local.tags
 
   # No `depends_on = [module.atlas_aws]`. `encryption_at_rest_provider` already
-  # orders the cluster after the project's encryption-at-rest configuration, and
-  # CLOUDP-452488 makes the connection string a data source that reads after both the
-  # cluster and the PrivateLink endpoint exist.
+  # orders the cluster after the project's encryption-at-rest configuration.
 }
 
 # --- Database users -----------------------------------------------------------

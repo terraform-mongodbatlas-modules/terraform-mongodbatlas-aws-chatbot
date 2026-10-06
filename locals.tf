@@ -290,10 +290,9 @@ locals {
   }
 
   # --- Mongo connection strings -----------------------------------------------
-  # CLOUDP-452488 backs `connection_strings` with a data source that reads the
-  # private-endpoint hostnames after the cluster and the endpoint exist. The
-  # fallback chain keeps the module usable against a cluster release that still
-  # reads the attribute off the resource.
+  # The cluster's own `connection_strings` attribute omits the private-endpoint
+  # hostnames until the endpoints are wired, so prefer the private-endpoint SRV,
+  # then `private_srv`, then `standard_srv`.
   mongo_private_connection_string = try(coalesce(
     try(module.atlas_cluster.connection_strings.private_endpoint[0].srv_connection_string, ""),
     try(module.atlas_cluster.connection_strings.private_srv, ""),
