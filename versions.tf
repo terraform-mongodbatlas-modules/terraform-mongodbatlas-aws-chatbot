@@ -22,10 +22,6 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.13"
     }
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.5"
-    }
     http = {
       source  = "hashicorp/http"
       version = "~> 3.4"

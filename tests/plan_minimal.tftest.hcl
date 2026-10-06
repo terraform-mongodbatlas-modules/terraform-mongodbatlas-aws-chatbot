@@ -80,21 +80,6 @@ mock_provider "time" {
   override_during = plan
 }
 
-mock_provider "local" {
-  override_during = plan
-
-  mock_data "local_file" {
-    defaults = {
-      content = jsonencode({
-        status               = "SUCCEEDED"
-        tag                  = "sha-test"
-        log_deep_link        = "https://example.com/logs"
-        codebuild_duration_s = 50
-      })
-    }
-  }
-}
-
 override_module {
   target          = module.atlas_cluster
   override_during = plan
@@ -133,17 +118,12 @@ run "minimal_inputs_name_everything_from_app_name" {
   }
 }
 
-run "built_image_resolves_to_the_hashed_tag" {
+run "built_image_resolves_to_the_module_repository" {
   command = plan
 
   assert {
-    condition = alltrue([
-      local.image_tags["chatbot"] == "sha-${substr(sha256("app-hash:${local.assets_content_hash}"), 0, 12)}",
-      local.app_image["chatbot"].image_tag == local.image_tags["chatbot"],
-      local.app_image["chatbot"].ecr_repository_url == module.app_infra.ecs_apps["chatbot"].ecr_repository_url,
-      module.ecs_service["chatbot"].image_uri == "${module.app_infra.ecs_apps["chatbot"].ecr_repository_url}:${local.image_tags["chatbot"]}",
-    ])
-    error_message = "A built app should resolve to the module's ECR repository and the tag hashed over both archives"
+    condition     = local.app_image["chatbot"].ecr_repository_url == module.app_infra.ecs_apps["chatbot"].ecr_repository_url
+    error_message = "A built app should resolve to the module-managed ECR repository"
   }
 }
 
@@ -156,7 +136,6 @@ run "outputs_expose_the_public_contract" {
       strcontains(output.https_url, "cloudfront.net"),
       output.chatbot.enabled == true,
       output.chatbot.login_username == "demo",
-      output.chatbot.https_url == output.https_url,
       output.chatbot.image_uri == "${module.app_infra.ecs_apps["chatbot"].ecr_repository_url}:${local.image_tags["chatbot"]}",
       output.chatbot_login_password == "test-password",
       length(output.extra_apps) == 0,

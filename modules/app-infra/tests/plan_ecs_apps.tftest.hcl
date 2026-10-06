@@ -132,6 +132,26 @@ run "ecs_ecr_key_missing" {
   ]
 }
 
+run "ecs_ecr_key_can_be_null" {
+  command = plan
+
+  variables {
+    ecs_apps = {
+      ui = {
+        roles = [{ database_name = "hybridrag" }]
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      output.ecs_apps["ui"].ecr_repository_url == null,
+      output.ecs_apps["ui"].runtime_secret_name == "ui-app",
+    ])
+    error_message = "A BYO-image app should be able to omit ecr_key entirely"
+  }
+}
+
 run "ecs_routing_requires_path_or_host" {
   command = plan
 

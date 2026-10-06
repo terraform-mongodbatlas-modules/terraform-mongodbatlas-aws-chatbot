@@ -51,8 +51,6 @@ The following requirements are needed by this module:
 
 - <a name="requirement_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
 
-- <a name="requirement_local"></a> [local](https://registry.terraform.io/providers/hashicorp/local/latest/docs) (~> 2.5)
-
 - <a name="requirement_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
 
 - <a name="requirement_random"></a> [random](https://registry.terraform.io/providers/hashicorp/random/latest/docs) (~> 3.6)
@@ -68,8 +66,6 @@ The following providers are used by this module:
 - <a name="provider_aws"></a> [aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) (~> 6.0)
 
 - <a name="provider_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
-
-- <a name="provider_local"></a> [local](https://registry.terraform.io/providers/hashicorp/local/latest/docs) (~> 2.5)
 
 - <a name="provider_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
 
@@ -98,6 +94,7 @@ The following resources are used by this module:
 - [random_password.chatbot_demo_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [random_password.public_debug](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [terraform_data.build](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
+- [terraform_data.prepare_build_dirs](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
 - [terraform_data.render_assets](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
 - [terraform_data.verify](https://developer.hashicorp.com/terraform/language/resources/terraform-data) (resource)
 - [time_sleep.iam_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
@@ -108,7 +105,6 @@ The following resources are used by this module:
 - [aws_iam_policy_document.codebuild_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) (data source)
 - [aws_secretsmanager_secret_version.llm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) (data source)
 - [http_http.caller_ip](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http) (data source)
-- [local_file.build_info](https://registry.terraform.io/providers/hashicorp/local/latest/docs/data-sources/file) (data source)
 - [mongodbatlas_roles_org_id.current](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs/data-sources/roles_org_id) (data source)
 
 <!-- BEGIN_TF_INPUTS_RAW -->
@@ -156,21 +152,19 @@ Default:
 
 Opt-in deployment features. The defaults produce a private, tagged demo:
 
-- `ecr`: create the ECR repository and build the app image with CodeBuild. Set false to skip both; every app entry must then supply `image_url`.
 - `waf`: attach the AWS Managed Rules Common Rule Set to the CloudFront distribution.
 - `vpc_endpoints`: keep the interface VPC endpoints (ECR, logs, Secrets Manager, STS) in the VPC. Set false to skip them; the app then reaches AWS APIs over NAT, which the module enables.
 - `internet_egress`: allow HTTPS egress from the app security group through NAT.
 - `atlas_byok`: create a customer-managed KMS key and enable Atlas encryption at rest with it.
 - `atlas_s3_log_export`: export Atlas logs to a module-managed S3 bucket.
 - `atlas_s3_backup_export`: export Atlas backups to a module-managed S3 bucket.
-- `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's grant, or `readWrite` on `hybrid_search` when there are no apps.
+- `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's role and database, but intentionally widens collection-scoped access to the database level for debugging. With no apps, it falls back to `readWrite` on `hybrid_search`.
 - `verify_deployment_ready`: poll `/health` from the apply and fail on a timeout.
 
 Type:
 
 ```hcl
 object({
-  ecr                      = optional(bool, true)
   waf                      = optional(bool, true)
   vpc_endpoints            = optional(bool, true)
   internet_egress          = optional(bool, false)
@@ -186,7 +180,7 @@ Default: `{}`
 
 ### llm
 
-LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly.
+LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly. Grove also requires `base_url`.
 
 Type:
 
@@ -195,6 +189,7 @@ object({
   provider    = optional(string, "bedrock")
   model       = optional(string)
   secret_name = optional(string)
+  base_url    = optional(string)
 })
 ```
 
@@ -217,6 +212,7 @@ The vendored chat app. Enabled by default; every field defaults to the demo.
 
 - `enabled`: deploy the chatbot. Set false to deploy only `overrides.extra_apps`.
 - `image_url` / `dockerfile_path`: bring your own image, or build your own Dockerfile instead of the vendored app. Mutually exclusive.
+- `ecr`: null infers from the image source. Built apps keep a module-managed ECR repository; a pure `image_url` app skips it. Set true with `image_url` to keep the repository around during a rollback or cutover.
 - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
 - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
 - `db_access`: the database and role the app authenticates as.
@@ -231,6 +227,7 @@ object({
   enabled         = optional(bool, true)
   image_url       = optional(string)
   dockerfile_path = optional(string)
+  ecr             = optional(bool)
   container_size  = optional(string, "small")
   task_cpu        = optional(string)
   task_memory     = optional(string)
@@ -297,7 +294,7 @@ The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by d
 
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
 - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-- `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+- `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
 - `networking`: the shared `main` edge every routing app uses.
 - `domain`: the custom-domain aliases and ACM certificate.
 - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
@@ -330,6 +327,7 @@ object({
   extra_apps = optional(map(object({
     image_url       = optional(string)
     dockerfile_path = optional(string)
+    ecr             = optional(bool)
     container_size  = optional(string, "small")
     task_cpu        = optional(string)
     task_memory     = optional(string)
@@ -376,7 +374,7 @@ The following outputs are exported:
 
 ### <a name="output_chatbot"></a> [chatbot](#output\_chatbot)
 
-Description: The chat app's URL, image, login, and build result. Null when chatbot.enabled is false.
+Description: The chat app's image, login, secret name, and build result. Null when chatbot.enabled is false.
 
 ### <a name="output_chatbot_login_password"></a> [chatbot\_login\_password](#output\_chatbot\_login\_password)
 
@@ -388,7 +386,7 @@ Description: Public connection string for the debug database user, for mongosh o
 
 ### <a name="output_extra_apps"></a> [extra\_apps](#output\_extra\_apps)
 
-Description: Per-app URL, path, image, and build result for overrides.extra\_apps.
+Description: Per-app path, image, secret name, and build result for overrides.extra\_apps.
 
 ### <a name="output_https_url"></a> [https\_url](#output\_https\_url)
 

@@ -80,14 +80,6 @@ mock_provider "time" {
   override_during = plan
 }
 
-mock_provider "local" {
-  override_during = plan
-
-  mock_data "local_file" {
-    defaults = { content = jsonencode({ status = "SUCCEEDED" }) }
-  }
-}
-
 mock_provider "http" {
   override_during = plan
 
@@ -115,25 +107,59 @@ variables {
   app_name = "mongodb-chatbot-demo"
 }
 
-run "ecr_off_brings_own_image" {
+run "image_url_inferrs_no_build_or_repo" {
   command = plan
 
   variables {
-    features = { ecr = false }
-    chatbot  = { image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom:1.0" }
+    chatbot = { image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom:1.0" }
   }
 
   assert {
     condition = alltrue([
+      local.apps["chatbot"].ecr == false,
       length(local.build_apps) == 0,
+      length(local.ecr_repositories) == 0,
       length(aws_codebuild_project.image) == 0,
       length(aws_s3_bucket.source) == 0,
       output.chatbot.image_build == null,
       local.app_image["chatbot"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom",
       local.app_image["chatbot"].image_tag == "1.0",
     ])
-    error_message = "features.ecr = false should skip the build and resolve the caller image"
+    error_message = "A pure image_url chatbot should infer no build and no module-managed repository"
   }
+}
+
+run "image_url_can_keep_the_repo" {
+  command = plan
+
+  variables {
+    chatbot = {
+      image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom:1.0"
+      ecr       = true
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      local.apps["chatbot"].ecr == true,
+      length(local.build_apps) == 0,
+      length(local.ecr_repositories) == 1,
+      length(module.app_infra.ecr_repositories) == 1,
+      local.app_image["chatbot"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/custom",
+      local.app_image["chatbot"].image_tag == "1.0",
+    ])
+    error_message = "A caller should be able to switch to image_url and keep the module-managed repository"
+  }
+}
+
+run "built_chatbot_cannot_disable_ecr" {
+  command = plan
+
+  variables {
+    chatbot = { ecr = false }
+  }
+
+  expect_failures = [var.chatbot]
 }
 
 run "waf_off_disables_the_edge" {

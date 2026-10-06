@@ -66,9 +66,21 @@ def discover_targets() -> list[Path]:
 def copy_module_files(source: Path, dest: Path) -> None:
     for tf_file in source.glob("*.tf"):
         shutil.copy2(tf_file, dest / tf_file.name)
-    modules_dir = source / "modules"
-    if modules_dir.exists():
-        shutil.copytree(modules_dir, dest / "modules")
+
+    for relative_path in [
+        Path("modules"),
+        Path("chatbot"),
+        Path("scripts"),
+        Path("buildspec.yaml"),
+    ]:
+        source_path = source / relative_path
+        dest_path = dest / relative_path
+        if not source_path.exists():
+            continue
+        if source_path.is_dir():
+            shutil.copytree(source_path, dest_path)
+            continue
+        shutil.copy2(source_path, dest_path)
 
 
 def _run_validate(job: TestJob) -> TestResult:

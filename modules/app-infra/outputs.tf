@@ -104,7 +104,7 @@ output "ecs_apps" {
     for k, v in local.ecs_apps : k => {
       name                = v.name
       aws_region          = v.aws_region
-      ecr_repository_url  = aws_ecr_repository.this[v.ecr_key].repository_url
+      ecr_repository_url  = v.ecr_key == null ? null : aws_ecr_repository.this[v.ecr_key].repository_url
       runtime_secret_name = v.runtime_secret_name
       network = {
         vpc_id                = local.app_network[v.aws_region].vpc_id

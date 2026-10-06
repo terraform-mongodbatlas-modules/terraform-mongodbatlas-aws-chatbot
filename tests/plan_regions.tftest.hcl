@@ -80,14 +80,6 @@ mock_provider "time" {
   override_during = plan
 }
 
-mock_provider "local" {
-  override_during = plan
-
-  mock_data "local_file" {
-    defaults = { content = jsonencode({ status = "SUCCEEDED" }) }
-  }
-}
-
 override_module {
   target          = module.atlas_cluster
   override_during = plan

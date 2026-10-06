@@ -35,18 +35,16 @@ variable "features" {
   description = <<-EOT
     Opt-in deployment features. The defaults produce a private, tagged demo:
 
-    - `ecr`: create the ECR repository and build the app image with CodeBuild. Set false to skip both; every app entry must then supply `image_url`.
     - `waf`: attach the AWS Managed Rules Common Rule Set to the CloudFront distribution.
     - `vpc_endpoints`: keep the interface VPC endpoints (ECR, logs, Secrets Manager, STS) in the VPC. Set false to skip them; the app then reaches AWS APIs over NAT, which the module enables.
     - `internet_egress`: allow HTTPS egress from the app security group through NAT.
     - `atlas_byok`: create a customer-managed KMS key and enable Atlas encryption at rest with it.
     - `atlas_s3_log_export`: export Atlas logs to a module-managed S3 bucket.
     - `atlas_s3_backup_export`: export Atlas backups to a module-managed S3 bucket.
-    - `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's grant, or `readWrite` on `hybrid_search` when there are no apps.
+    - `debug_access_for_cluster`: add a caller IP to the project access list and create a database user that borrows the first app's role and database, but intentionally widens collection-scoped access to the database level for debugging. With no apps, it falls back to `readWrite` on `hybrid_search`.
     - `verify_deployment_ready`: poll `/health` from the apply and fail on a timeout.
   EOT
   type = object({
-    ecr                      = optional(bool, true)
     waf                      = optional(bool, true)
     vpc_endpoints            = optional(bool, true)
     internet_egress          = optional(bool, false)
@@ -120,6 +118,7 @@ variable "chatbot" {
 
     - `enabled`: deploy the chatbot. Set false to deploy only `overrides.extra_apps`.
     - `image_url` / `dockerfile_path`: bring your own image, or build your own Dockerfile instead of the vendored app. Mutually exclusive.
+    - `ecr`: null infers from the image source. Built apps keep a module-managed ECR repository; a pure `image_url` app skips it. Set true with `image_url` to keep the repository around during a rollback or cutover.
     - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
     - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
     - `db_access`: the database and role the app authenticates as.
@@ -131,6 +130,7 @@ variable "chatbot" {
     enabled         = optional(bool, true)
     image_url       = optional(string)
     dockerfile_path = optional(string)
+    ecr             = optional(bool)
     container_size  = optional(string, "small")
     task_cpu        = optional(string)
     task_memory     = optional(string)
@@ -169,20 +169,35 @@ variable "chatbot" {
     condition     = var.chatbot.dockerfile_path == null || fileexists(var.chatbot.dockerfile_path)
     error_message = "chatbot.dockerfile_path must point to an existing Dockerfile."
   }
+
+  validation {
+    condition = (
+      var.chatbot.image_url != null ||
+      var.chatbot.enabled == false ||
+      try(var.chatbot.ecr, null) != false
+    )
+    error_message = "chatbot.ecr cannot be false when the chatbot image is module-built; leave it null or true, or set image_url."
+  }
 }
 
 variable "llm" {
-  description = "LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly."
+  description = "LLM provider for the app. Defaults to Amazon Bedrock, which uses the ECS task role and needs no key. Set `secret_name` for a keyed provider; the provider is inferred from the name unless set explicitly. Grove also requires `base_url`."
   type = object({
     provider    = optional(string, "bedrock")
     model       = optional(string)
     secret_name = optional(string)
+    base_url    = optional(string)
   })
   default = {}
 
   validation {
     condition     = contains(["bedrock", "anthropic", "openai", "gemini", "grove"], var.llm.provider)
     error_message = "llm.provider must be bedrock, anthropic, openai, gemini, or grove."
+  }
+
+  validation {
+    condition     = var.llm.provider != "grove" || var.llm.secret_name == null || try(var.llm.base_url, null) != null
+    error_message = "llm.base_url is required when llm.provider = \"grove\" and llm.secret_name is set."
   }
 }
 
@@ -198,7 +213,7 @@ variable "overrides" {
 
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
     - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-    - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+    - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
     - `networking`: the shared `main` edge every routing app uses.
     - `domain`: the custom-domain aliases and ACM certificate.
     - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
@@ -228,6 +243,7 @@ variable "overrides" {
     extra_apps = optional(map(object({
       image_url       = optional(string)
       dockerfile_path = optional(string)
+      ecr             = optional(bool)
       container_size  = optional(string, "small")
       task_cpu        = optional(string)
       task_memory     = optional(string)
@@ -322,13 +338,10 @@ variable "overrides" {
   }
 
   validation {
-    condition = var.features.ecr || (
-      (!var.chatbot.enabled || var.chatbot.image_url != null) &&
-      alltrue([
-        for _, app in var.overrides.extra_apps :
-        app.image_url != null
-      ])
-    )
-    error_message = "features.ecr = false creates no repository, so every app entry (chatbot and extra_apps) must set image_url and must not set dockerfile_path."
+    condition = alltrue([
+      for _, app in var.overrides.extra_apps :
+      app.image_url != null || try(app.ecr, null) != false
+    ])
+    error_message = "overrides.extra_apps.*.ecr cannot be false when that app image is module-built; leave it null or true, or set image_url."
   }
 }

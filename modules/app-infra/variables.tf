@@ -249,14 +249,14 @@ variable "ecs_apps" {
   description = <<-EOT
     Optional ECS deployment targets. Map keys are stable identities.
     Each entry creates one ECS task role and one execution role. The caller owns the Atlas IAM database user (username = task role ARN).
-    ecr_key selects an entry in ecr_repositories. routing attaches the app to an http_edges ALB (ecs-service creates TG + listener rule).
+    ecr_key optionally selects an entry in ecr_repositories. Leave it null when an app brings its own image and does not want a module-managed ECR repository. routing attaches the app to an http_edges ALB (ecs-service creates TG + listener rule).
     Omit routing for private/worker tasks. routing requires explicit edge, listener_priority, and path_pattern or host_header.
     internet_egress: when true, enables a NAT gateway in the app's AWS region (managed VPC) and allows HTTPS egress to the public internet from the shared app security group.
     extra_task_policies: IAM task-role policies the caller authors, keyed by policy name. The caller passes JSON it owns (for example from a provider module); this module only attaches it.
   EOT
   type = map(object({
     name             = optional(string)
-    ecr_key          = string
+    ecr_key          = optional(string)
     aws_region       = optional(string)
     primary_database = optional(string)
     routing = optional(object({
@@ -284,9 +284,9 @@ variable "ecs_apps" {
   validation {
     condition = alltrue([
       for _, app in var.ecs_apps :
-      contains(keys(var.ecr_repositories), app.ecr_key)
+      app.ecr_key == null || contains(keys(var.ecr_repositories), app.ecr_key)
     ])
-    error_message = "Each ecs_apps.*.ecr_key must exist in ecr_repositories."
+    error_message = "Each non-null ecs_apps.*.ecr_key must exist in ecr_repositories."
   }
 
   validation {
@@ -303,13 +303,15 @@ variable "ecs_apps" {
   validation {
     condition = alltrue([
       for _, app in var.ecs_apps :
-      coalesce(app.aws_region, replace(lower(var.regions[0].name), "_", "-")) ==
-      coalesce(
-        try(var.ecr_repositories[app.ecr_key].region, null),
-        replace(lower(var.regions[0].name), "_", "-")
+      app.ecr_key == null || (
+        coalesce(app.aws_region, replace(lower(var.regions[0].name), "_", "-")) ==
+        coalesce(
+          try(var.ecr_repositories[app.ecr_key].region, null),
+          replace(lower(var.regions[0].name), "_", "-")
+        )
       )
     ])
-    error_message = "ecs_apps.*.aws_region must match ecr_repositories[ecr_key].region (after defaults)."
+    error_message = "ecs_apps.*.aws_region must match ecr_repositories[ecr_key].region (after defaults) when ecr_key is set."
   }
 
   validation {
@@ -318,6 +320,20 @@ variable "ecs_apps" {
       app.routing == null || contains(keys(var.http_edges), app.routing.edge)
     ])
     error_message = "ecs_apps.*.routing.edge must reference a key in http_edges."
+  }
+
+  validation {
+    condition = alltrue([
+      for _, app in var.ecs_apps :
+      app.routing == null || (
+        coalesce(app.aws_region, replace(lower(var.regions[0].name), "_", "-")) ==
+        coalesce(
+          try(var.http_edges[app.routing.edge].aws_region, null),
+          replace(lower(var.regions[0].name), "_", "-")
+        )
+      )
+    ])
+    error_message = "ecs_apps.*.aws_region must match http_edges[routing.edge].aws_region (after defaults)."
   }
 
   validation {

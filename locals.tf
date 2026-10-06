@@ -39,7 +39,10 @@ locals {
     grove     = "GROVE_MODEL"
   }
   llm_env_name = lookup(local.llm_env_names, var.llm.provider, null)
-  llm_env      = var.llm.model == null ? {} : { (local.llm_model_env_names[var.llm.provider]) = var.llm.model }
+  llm_env = merge(
+    var.llm.model == null ? {} : { (local.llm_model_env_names[var.llm.provider]) = var.llm.model },
+    var.llm.provider == "grove" && try(var.llm.base_url, null) != null ? { GROVE_BASE_URL = var.llm.base_url } : {}
+  )
 
   # --- Apps -------------------------------------------------------------------
   # `chatbot` is the vendored app; `overrides.extra_apps` are additional apps.
@@ -57,11 +60,12 @@ locals {
       aws_region          = coalesce(try(cfg.aws_region, null), local.aws_region)
       image_url           = try(cfg.image_url, null)
       dockerfile_path     = try(cfg.dockerfile_path, null)
+      ecr                 = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null)
       container_size      = try(cfg.container_size, "small")
       task_cpu            = coalesce(try(cfg.task_cpu, null), local.container_sizes[try(cfg.container_size, "small")].cpu)
       task_memory         = coalesce(try(cfg.task_memory, null), local.container_sizes[try(cfg.container_size, "small")].memory)
       internet_egress     = try(cfg.internet_egress, false)
-      ecr_key             = k
+      ecr_key             = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null) ? k : null
       runtime_secret_name = "${k == "chatbot" ? var.app_name : k}-app"
 
       db_access = {
@@ -92,11 +96,10 @@ locals {
   }
 
   # Apps the module builds with CodeBuild: the blessed chatbot and any
-  # `build_path` entry, when `features.ecr` is true. A caller `image_url` app is
-  # never built.
+  # `dockerfile_path` entry. A caller `image_url` app is never built.
   build_apps = {
     for k, app in local.apps : k => app
-    if var.features.ecr && app.image_url == null
+    if app.image_url == null
   }
 
   # --- App image --------------------------------------------------------------
@@ -129,9 +132,15 @@ locals {
     )
   }
 
+  common_app_env = {
+    for k, app in local.apps : k => merge(module.llm.env, {
+      MONGODB_DATABASE = app.db_access.database_name
+      MONGODB_URI      = local.mongo_iam_connection_strings_by_region[app.aws_region]
+    })
+  }
   app_container_env = {
     for k, app in local.apps : k => (
-      k == "chatbot" ? merge(local.app_env, module.llm.env) : module.llm.env
+      k == "chatbot" ? merge(local.common_app_env[k], local.app_env) : local.common_app_env[k]
     )
   }
   app_secret_keys = {
@@ -143,8 +152,9 @@ locals {
   }
 
   # --- app-infra inputs -------------------------------------------------------
-  # One repository per app so app-infra can resolve every `ecr_key`. The
-  # repository is unused when the app brings its own image.
+  # Create repositories only for apps that resolve `ecr = true`. That is the
+  # default for module-built images, inferred false for a pure `image_url` app,
+  # and explicitly true for a BYO image that still wants to keep the repo around.
   ecr_repositories = {
     for k, app in local.apps : k => {
       name                 = app.name
@@ -153,6 +163,7 @@ locals {
       force_delete         = true
       lifecycle_keep_count = 10
     }
+    if app.ecr
   }
 
   ecs_apps = {
@@ -325,18 +336,18 @@ locals {
   chatbot_app = try(local.apps["chatbot"], null)
   app_env = local.chatbot_app == null ? {} : {
     CHAINLIT_DEMO_USERNAME = "demo"
-    MONGODB_DATABASE       = local.chatbot_app.db_access.database_name
-    MONGODB_URI            = local.mongo_iam_connection_strings_by_region[local.chatbot_app.aws_region]
     TOP_K                  = "20"
     CHUNK_MAX_TOKENS       = "512"
     AUTOEMBED_MODEL        = var.overrides.cluster.autoembed_model
     DOCUMENT_DIRS          = "/app/assets/document_dirs"
   }
 
-  # The debug database user borrows the first app's grant. The chatbot is the
-  # default source; with it disabled, the first extra app is used. With no apps
-  # at all, fall back to the module's default grant so the caller can still
-  # connect to the cluster.
+  # The debug database user borrows the first app's role_name and
+  # database_name. atlas.tf intentionally drops collection_name so the public
+  # debug user gets database-level access for temporary investigation. The
+  # chatbot is the default source; with it disabled, the first extra app is
+  # used. With no apps at all, fall back to the module's default grant so the
+  # caller can still connect to the cluster.
   debug_db_access = (
     local.chatbot_app != null ? local.chatbot_app.db_access :
     length(local.apps) > 0 ? values(local.apps)[0].db_access :

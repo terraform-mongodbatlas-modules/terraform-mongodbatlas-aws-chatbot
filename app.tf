@@ -81,6 +81,7 @@ module "ecs_service" {
   tags        = local.tags
 
   # A built image must exist before the service starts. `terraform_data.build`
-  # is empty when `features.ecr` is false, and the dependency is then a no-op.
+  # is empty for apps that bring their own image, and the dependency is then a
+  # no-op for those entries.
   depends_on = [terraform_data.build]
 }

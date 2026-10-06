@@ -19,6 +19,7 @@ locals {
 
   build_enabled = length(local.build_apps) > 0
   chatbot_built = contains(keys(local.build_apps), "chatbot")
+  build_regions = toset([for app in local.build_apps : app.aws_region])
 
   # Excludes for the app source zip. The pattern list lives in
   # chatbot/.archiveignore so it can be read and edited as a file; blank lines
@@ -52,11 +53,27 @@ locals {
   assets_content_hash = sha256(jsonencode({
     vendored       = local.vendored_assets_hash
     queries        = var.queries
+    document_dirs  = var.document_dirs
     override_files = local.assets_override_file_hashes
   }))
 }
 
 # --- App source archives ------------------------------------------------------
+
+resource "terraform_data" "prepare_build_dirs" {
+  count = local.build_enabled ? 1 : 0
+
+  triggers_replace = {
+    build_apps = join(",", sort(keys(local.build_apps)))
+  }
+
+  provisioner "local-exec" {
+    command = join(" ", concat(
+      ["mkdir", "-p", "${path.module}/.build"],
+      [for k in sort(keys(local.build_apps)) : "${path.module}/.build/${k}"]
+    ))
+  }
+}
 
 data "archive_file" "app" {
   for_each = local.build_apps
@@ -73,6 +90,8 @@ data "archive_file" "app" {
   # The vendored tree carries local build state on disk; without excludes the
   # zip is huge and non-deterministic. Patterns live in chatbot/.archiveignore.
   excludes = local.archive_excludes
+
+  depends_on = [terraform_data.prepare_build_dirs]
 }
 
 # --- Assets tree render -------------------------------------------------------
@@ -87,6 +106,7 @@ resource "terraform_data" "render_assets" {
     queries              = var.queries
     document_dirs        = var.document_dirs
     assets_dir           = var.assets_dir
+    assets_content_hash  = local.assets_content_hash
     vendored_assets_hash = local.vendored_assets_hash
   }
 
@@ -110,24 +130,24 @@ data "archive_file" "assets" {
   output_path = "${path.module}/.build/assets.zip"
 
   # The read defers to apply on the first run, after the render creates the tree.
-  depends_on = [terraform_data.render_assets]
+  depends_on = [terraform_data.prepare_build_dirs, terraform_data.render_assets]
 }
 
 # --- Source bucket ------------------------------------------------------------
 
 resource "aws_s3_bucket" "source" {
-  count = local.build_enabled ? 1 : 0
+  for_each = local.build_enabled ? { for region in local.build_regions : region => region } : {}
 
-  region        = local.aws_region
-  bucket_prefix = "${var.app_name}-codebuild-"
+  region        = each.key
+  bucket_prefix = "${var.app_name}-${each.key}-cb-"
   force_destroy = true
 }
 
 resource "aws_s3_object" "app" {
   for_each = local.build_apps
 
-  region      = local.aws_region
-  bucket      = aws_s3_bucket.source[0].id
+  region      = each.value.aws_region
+  bucket      = aws_s3_bucket.source[each.value.aws_region].id
   key         = "${each.key}/app.zip"
   source      = data.archive_file.app[each.key].output_path
   source_hash = data.archive_file.app[each.key].output_base64sha256
@@ -136,8 +156,8 @@ resource "aws_s3_object" "app" {
 resource "aws_s3_object" "assets" {
   count = local.chatbot_built ? 1 : 0
 
-  region      = local.aws_region
-  bucket      = aws_s3_bucket.source[0].id
+  region      = local.build_apps["chatbot"].aws_region
+  bucket      = aws_s3_bucket.source[local.build_apps["chatbot"].aws_region].id
   key         = "assets.zip"
   source      = data.archive_file.assets[0].output_path
   source_hash = data.archive_file.assets[0].output_base64sha256
@@ -183,7 +203,7 @@ data "aws_iam_policy_document" "codebuild" {
       "s3:GetObject",
       "s3:GetObjectVersion",
     ]
-    resources = ["${aws_s3_bucket.source[0].arn}/*"]
+    resources = [for _, bucket in aws_s3_bucket.source : "${bucket.arn}/*"]
   }
 
   statement {
@@ -268,8 +288,9 @@ resource "aws_codebuild_project" "image" {
     type     = "S3"
     location = "${aws_s3_object.app[each.key].bucket}/${aws_s3_object.app[each.key].key}"
     buildspec = templatefile("${path.module}/buildspec.yaml", {
-      ecr_repo_url = module.app_infra.ecs_apps[each.key].ecr_repository_url
-      has_assets   = each.key == "chatbot"
+      ecr_repo_url    = module.app_infra.ecs_apps[each.key].ecr_repository_url
+      has_assets      = each.key == "chatbot"
+      dockerfile_name = each.value.dockerfile_path == null ? "Dockerfile" : basename(each.value.dockerfile_path)
     })
   }
 
@@ -305,9 +326,3 @@ resource "terraform_data" "build" {
   }
 }
 
-data "local_file" "build_info" {
-  for_each = local.build_apps
-
-  filename   = "${path.module}/.build/${each.key}/build.json"
-  depends_on = [terraform_data.build]
-}

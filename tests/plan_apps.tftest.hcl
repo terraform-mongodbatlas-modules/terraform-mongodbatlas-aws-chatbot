@@ -80,14 +80,6 @@ mock_provider "time" {
   override_during = plan
 }
 
-mock_provider "local" {
-  override_during = plan
-
-  mock_data "local_file" {
-    defaults = { content = jsonencode({ status = "SUCCEEDED" }) }
-  }
-}
-
 override_module {
   target          = module.atlas_cluster
   override_during = plan
@@ -128,14 +120,48 @@ run "extra_apps_expand_services_users_and_builds" {
     condition = alltrue([
       length(module.ecs_service) == 3,
       length(mongodbatlas_database_user.ecs) == 3,
-      length(module.app_infra.ecr_repositories) == 3,
+      length(module.app_infra.ecr_repositories) == 2,
+      local.apps["api"].ecr == false,
+      module.app_infra.ecs_apps["api"].ecr_repository_url == null,
       local.app_image["api"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api",
       local.app_image["api"].image_tag == "1.0",
       contains(keys(local.build_apps), "worker"),
       !contains(keys(local.build_apps), "api"),
       length(aws_codebuild_project.image) == 2,
     ])
-    error_message = "A caller image_url entry should resolve to that URI and a dockerfile_path entry should get its own build"
+    error_message = "A caller image_url entry should resolve to that URI without a module repo by default, and a dockerfile_path entry should get its own build"
+  }
+}
+
+run "image_url_app_can_keep_the_repo" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        api = {
+          image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
+          ecr       = true
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
+        }
+        worker = {
+          dockerfile_path = "chatbot/Dockerfile"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      local.apps["api"].ecr == true,
+      length(module.app_infra.ecr_repositories) == 3,
+      module.app_infra.ecs_apps["api"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/app",
+      !contains(keys(local.build_apps), "api"),
+    ])
+    error_message = "An image_url extra app should be able to keep its module-managed repository when ecr = true"
   }
 }
 

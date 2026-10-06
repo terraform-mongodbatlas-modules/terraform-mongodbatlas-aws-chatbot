@@ -80,14 +80,6 @@ mock_provider "time" {
   override_during = plan
 }
 
-mock_provider "local" {
-  override_during = plan
-
-  mock_data "local_file" {
-    defaults = { content = jsonencode({ status = "SUCCEEDED" }) }
-  }
-}
-
 override_module {
   target          = module.atlas_cluster
   override_during = plan
@@ -128,7 +120,6 @@ run "worker_only_apps_create_no_edge" {
       output.chatbot_login_password == null,
       output.https_url == null,
       length(output.extra_apps) == 1,
-      output.extra_apps["worker"].https_url == null,
       output.extra_apps["worker"].path_pattern == null,
     ])
     error_message = "A worker-only app set should skip the ALB, CloudFront, and WAF and expose a null URL"
@@ -158,10 +149,37 @@ run "disabled_chatbot_outputs_are_null" {
       output.chatbot == null,
       output.chatbot_login_password == null,
       startswith(output.https_url, "https://"),
-      output.extra_apps["api"].https_url == output.https_url,
       output.extra_apps["api"].path_pattern == tolist(["/api/*"]),
     ])
     error_message = "Disabling the chatbot should null its outputs and keep the edge for the routing extra app"
+  }
+}
+
+run "mixed_worker_and_routing_apps_keep_per_app_paths_only" {
+  command = plan
+
+  variables {
+    chatbot = { enabled = false }
+    overrides = {
+      extra_apps = {
+        api = {
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
+        }
+        worker = {}
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      length(module.app_infra.aws.http_edges) == 1,
+      output.extra_apps["api"].path_pattern == tolist(["/api/*"]),
+      output.extra_apps["worker"].path_pattern == null,
+    ])
+    error_message = "A mixed routed-plus-worker deployment should expose only the root https_url and keep per-app path data"
   }
 }
 

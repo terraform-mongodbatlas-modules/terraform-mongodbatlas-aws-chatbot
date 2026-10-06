@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Poll a deployed app's `/health` until the deployment is ready.
 
 Stdlib only, Python 3.10+: `features.verify_deployment_ready` runs this from a
@@ -38,7 +37,7 @@ def resolve_url(module_dir: Path) -> str | None:
             capture_output=True,
             text=True,
         )
-    except OSError, subprocess.CalledProcessError:
+    except (OSError, subprocess.CalledProcessError):
         return os.environ.get("HYBRID_SEARCH_URL")
     value = completed.stdout.strip()
     if not value or value == "null":

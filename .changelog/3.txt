@@ -1,0 +1,3 @@
+```release-note:note
+module: Composes the Atlas, app infrastructure, and CodeBuild image pipeline into one root-module deployment
+```

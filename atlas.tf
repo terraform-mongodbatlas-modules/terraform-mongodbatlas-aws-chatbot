@@ -40,6 +40,10 @@ resource "mongodbatlas_database_user" "public_debug" {
   password           = random_password.public_debug[0].result
   auth_database_name = "admin"
 
+  # Intentionally widen a collection-scoped app grant to the database level for
+  # the public debug user. The debug path is for temporary manual inspection
+  # from the caller IP, so a broader database role is easier to use in mongosh
+  # and local tools during investigation.
   roles {
     role_name     = local.debug_db_access.role_name
     database_name = local.debug_db_access.database_name

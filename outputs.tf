@@ -4,14 +4,17 @@ output "https_url" {
 }
 
 output "chatbot" {
-  description = "The chat app's URL, image, login, and build result. Null when chatbot.enabled is false."
+  description = "The chat app's image, login, secret name, and build result. Null when chatbot.enabled is false."
   value = local.chatbot_app == null ? null : {
     enabled        = true
-    https_url      = module.app_infra.https_url
     image_uri      = "${local.app_image["chatbot"].ecr_repository_url}:${local.app_image["chatbot"].image_tag}"
     login_username = "demo"
     secret_name    = aws_secretsmanager_secret.app["chatbot"].name
-    image_build    = try(jsondecode(data.local_file.build_info["chatbot"].content), null)
+    image_build = contains(keys(terraform_data.build), "chatbot") ? {
+      image_tag = local.app_image["chatbot"].image_tag
+      project   = aws_codebuild_project.image["chatbot"].name
+      region    = local.apps["chatbot"].aws_region
+    } : null
   }
 }
 
@@ -22,14 +25,17 @@ output "chatbot_login_password" {
 }
 
 output "extra_apps" {
-  description = "Per-app URL, path, image, and build result for overrides.extra_apps."
+  description = "Per-app path, image, secret name, and build result for overrides.extra_apps."
   value = {
     for k, app in var.overrides.extra_apps : k => {
-      https_url    = module.app_infra.https_url
       path_pattern = try(local.apps[k].routing.path_pattern, null)
       image_uri    = "${local.app_image[k].ecr_repository_url}:${local.app_image[k].image_tag}"
       secret_name  = aws_secretsmanager_secret.app[k].name
-      image_build  = try(jsondecode(data.local_file.build_info[k].content), null)
+      image_build = contains(keys(terraform_data.build), k) ? {
+        image_tag = local.app_image[k].image_tag
+        project   = aws_codebuild_project.image[k].name
+        region    = local.apps[k].aws_region
+      } : null
     }
   }
 }

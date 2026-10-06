@@ -16,5 +16,5 @@ phases:
 %{ endif ~}
   build:
     commands:
-      - docker build --platform linux/arm64 -t ${ecr_repo_url}:$IMAGE_TAG .
+      - docker build --platform linux/arm64 -f ${dockerfile_name} -t ${ecr_repo_url}:$IMAGE_TAG .
       - docker push ${ecr_repo_url}:$IMAGE_TAG
