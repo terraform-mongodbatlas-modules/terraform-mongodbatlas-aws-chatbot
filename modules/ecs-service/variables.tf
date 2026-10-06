@@ -14,8 +14,9 @@ variable "ecr_repository_url" {
 }
 
 variable "network" {
-  description = "Private subnets and app security group from modules/app-infra ecs_apps.network."
+  description = "VPC id, private subnets, and app security group from modules/app-infra ecs_apps.network."
   type = object({
+    vpc_id                = string
     private_subnet_ids    = list(string)
     ecs_security_group_id = string
   })

@@ -107,6 +107,7 @@ output "ecs_apps" {
       ecr_repository_url  = aws_ecr_repository.this[v.ecr_key].repository_url
       runtime_secret_name = v.runtime_secret_name
       network = {
+        vpc_id                = local.app_network[v.aws_region].vpc_id
         private_subnet_ids    = local.app_network[v.aws_region].private_subnet_ids
         ecs_security_group_id = aws_security_group.app[v.aws_region].id
       }

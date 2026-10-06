@@ -1,11 +1,5 @@
 mock_provider "aws" {
   override_during = plan
-
-  mock_data "aws_subnet" {
-    defaults = {
-      vpc_id = "vpc-mock"
-    }
-  }
 }
 
 variables {
@@ -14,6 +8,7 @@ variables {
   aws_region         = "us-east-1"
   ecr_repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/hybridrag-ui"
   network = {
+    vpc_id                = "vpc-aaa"
     private_subnet_ids    = ["subnet-aaa"]
     ecs_security_group_id = "sg-ecs"
   }
@@ -33,6 +28,7 @@ run "rejects_empty_private_subnet_ids" {
 
   variables {
     network = {
+      vpc_id                = "vpc-aaa"
       private_subnet_ids    = []
       ecs_security_group_id = "sg-ecs"
     }

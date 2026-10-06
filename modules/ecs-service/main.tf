@@ -3,11 +3,6 @@ locals {
   log_group_name = "/ecs/${var.name}"
 }
 
-data "aws_subnet" "first_private" {
-  region = var.aws_region
-  id     = var.network.private_subnet_ids[0]
-}
-
 resource "aws_cloudwatch_log_group" "ecs" {
   region            = var.aws_region
   name              = local.log_group_name
@@ -28,7 +23,7 @@ resource "aws_lb_target_group" "this" {
   name                 = var.name
   port                 = try(var.routing.container_port, null)
   protocol             = "HTTP"
-  vpc_id               = data.aws_subnet.first_private.vpc_id
+  vpc_id               = var.network.vpc_id
   target_type          = "ip"
   deregistration_delay = var.deregistration_delay
 

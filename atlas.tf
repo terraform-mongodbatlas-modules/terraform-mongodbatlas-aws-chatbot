@@ -72,7 +72,10 @@ module "atlas_aws" {
   project_id = module.atlas_project.id
 
   # PrivateLink into the app infra VPC. module.app_infra must come first: these
-  # are its subnet IDs.
+  # are its subnet IDs, and passing them by value already orders the two modules.
+  # Do not add `depends_on = [module.app_infra]`: a module-level depends_on
+  # defers the VPC/subnet data sources inside atlas-aws' privatelink submodule
+  # and force-replaces the endpoint.
   privatelink_endpoints = [
     for r in local.regions_resolved : {
       region     = r.atlas_name

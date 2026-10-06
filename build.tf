@@ -97,7 +97,7 @@ resource "terraform_data" "render_assets" {
       "--staging-dir ${path.module}/.render/assets",
       "--queries-b64 ${base64encode(jsonencode(var.queries))}",
       "--document-dirs-b64 ${base64encode(jsonencode(var.document_dirs))}",
-      "--assets-dir \"${coalesce(var.assets_dir, "")}\"",
+      "--assets-dir \"${var.assets_dir == null ? "" : var.assets_dir}\"",
     ])
   }
 }

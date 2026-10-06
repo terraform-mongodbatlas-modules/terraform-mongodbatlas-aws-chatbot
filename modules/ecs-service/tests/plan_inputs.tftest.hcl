@@ -1,11 +1,5 @@
 mock_provider "aws" {
   override_during = plan
-
-  mock_data "aws_subnet" {
-    defaults = {
-      vpc_id = "vpc-mock"
-    }
-  }
 }
 
 variables {
@@ -14,6 +8,7 @@ variables {
   aws_region         = "us-east-1"
   ecr_repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/hybridrag-ui"
   network = {
+    vpc_id                = "vpc-aaa"
     private_subnet_ids    = ["subnet-aaa", "subnet-bbb"]
     ecs_security_group_id = "sg-ecs"
   }
@@ -48,11 +43,12 @@ run "creates_cluster_and_target_group" {
     condition = alltrue([
       aws_ecs_cluster.this.name == "hybridrag-ui",
       aws_ecs_service.this.name == "hybridrag-ui",
-      aws_lb_target_group.this.port == 8001,
-      aws_lb_target_group.this.health_check[0].path == "/",
-      aws_lb_target_group.this.health_check[0].interval == 10,
-      aws_lb_target_group.this.health_check[0].healthy_threshold == 2,
-      aws_lb_target_group.this.deregistration_delay == "30",
+      aws_lb_target_group.this[0].vpc_id == "vpc-aaa",
+      aws_lb_target_group.this[0].port == 8001,
+      aws_lb_target_group.this[0].health_check[0].path == "/",
+      aws_lb_target_group.this[0].health_check[0].interval == 10,
+      aws_lb_target_group.this[0].health_check[0].healthy_threshold == 2,
+      aws_lb_target_group.this[0].deregistration_delay == "30",
       aws_ecs_service.this.deployment_minimum_healthy_percent == 100,
       aws_ecs_service.this.deployment_maximum_percent == 200,
       aws_ecs_service.this.deployment_circuit_breaker[0].enable == true,
