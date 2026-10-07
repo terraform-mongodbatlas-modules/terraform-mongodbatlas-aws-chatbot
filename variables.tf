@@ -325,13 +325,15 @@ variable "overrides" {
   }
 
   validation {
-    condition = (
-      var.overrides.resource_prefix == null ||
+    # try() tolerates null on Terraform 1.10 and 1.11, which do not
+    # short-circuit || inside variable validations.
+    condition = var.overrides.resource_prefix == null || try(
       (
         length(var.overrides.resource_prefix) >= 1 &&
         length(var.overrides.resource_prefix) <= 23 &&
         can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.overrides.resource_prefix))
-      )
+      ),
+      false
     )
     error_message = "overrides.resource_prefix must be 1 to 23 characters of lowercase letters, digits, and hyphens, and must start and end with a letter or digit."
   }
