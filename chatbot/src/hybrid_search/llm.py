@@ -15,14 +15,9 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from hybrid_search.settings import HybridSearchSettings
 
-RAG_SYSTEM_PROMPT = (
-    "Answer the question using only the context snippets provided in the user message. "
-    "If the context is insufficient, say so briefly. Whenever you reply to a question start with bullet points if it makes sense and a longer explanation below."
-)
-
 
 def build_agent(settings: HybridSearchSettings) -> Agent[None, str]:
-    return Agent(_build_model(settings), system_prompt=RAG_SYSTEM_PROMPT, output_type=str)
+    return Agent(_build_model(settings), system_prompt=settings.rag_system_prompt, output_type=str)
 
 
 async def run_rag_prompt(prompt: str, *, settings: HybridSearchSettings) -> str:

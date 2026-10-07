@@ -121,6 +121,7 @@ variable "chatbot" {
     - `ecr`: null infers from the image source. Built apps keep a module-managed ECR repository; a pure `image_url` app skips it. Set true with `image_url` to keep the repository around during a rollback or cutover.
     - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
     - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
+    - `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers with short bullet points first and a paragraph of details after.
     - `db_access`: the database and role the app authenticates as.
     - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
     - `internet_egress`: allow HTTPS egress from the app security group through NAT.
@@ -134,6 +135,7 @@ variable "chatbot" {
     container_size  = optional(string, "small")
     task_cpu        = optional(string)
     task_memory     = optional(string)
+    system_prompt   = optional(string)
     db_access = optional(object({
       database_name   = optional(string, "hybrid_search")
       role_name       = optional(string, "readWrite")

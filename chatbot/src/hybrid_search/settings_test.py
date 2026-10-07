@@ -63,6 +63,19 @@ def test_env_override(monkeypatch):
     assert settings.demo_queries_path == Path("/tmp/custom.yaml")
 
 
+def test_rag_system_prompt_defaults_to_improved_text():
+    prompt = _settings().rag_system_prompt
+    assert prompt == settings_module.DEFAULT_RAG_SYSTEM_PROMPT
+    assert "bullet points" in prompt
+
+
+def test_rag_system_prompt_env_override(monkeypatch):
+    monkeypatch.setenv("RAG_SYSTEM_PROMPT", "Answer in one line.")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost")
+    clear_settings_cache()
+    assert get_settings().rag_system_prompt == "Answer in one line."
+
+
 def test_rejects_bad_mongodb_uri():
     with pytest.raises(ValueError, match="mongodb_uri"):
         _settings(mongodb_uri=SecretStr("http://bad"))

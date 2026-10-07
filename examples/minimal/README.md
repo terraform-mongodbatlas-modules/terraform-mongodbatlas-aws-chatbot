@@ -99,6 +99,12 @@ module "chatbot" {
   document_dirs = ["why-mongodb-for-agents.md"] # [] keeps the bundled corpus
   llm           = { provider = "bedrock" }
   extra_tags    = var.extra_tags # Name = var.app_name added by default
+
+  # The app answers with short bullet points first, then a paragraph of details.
+  # Change the text to steer the answer shape; leave it out to keep the app default.
+  chatbot = {
+    system_prompt = "Answer the question using only the context snippets in the user message. Start with a few short bullet points that give the direct answer, then add a short paragraph with the supporting details and any caveats. If the context is insufficient, say so briefly."
+  }
 }
 
 output "https_url" {

@@ -22,6 +22,15 @@ AUTOEMBED_CONTEXT_TOKENS = 32_000
 MIN_CHUNK_MAX_TOKENS = 40
 MAX_CHUNK_MAX_TOKENS = 1500
 
+# The app's answer shape: short bullet points first, then a paragraph of details.
+# Callers can override it through the RAG_SYSTEM_PROMPT env var.
+DEFAULT_RAG_SYSTEM_PROMPT = (
+    "Answer the question using only the context snippets in the user message. "
+    "Start with a few short bullet points that give the direct answer, then add a "
+    "short paragraph with the supporting details and any caveats. "
+    "If the context is insufficient, say so briefly."
+)
+
 
 class HybridSearchSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
@@ -41,6 +50,7 @@ class HybridSearchSettings(BaseSettings):
     vector_weight: float = 0.6
     text_weight: float = 0.4
     enable_llm: bool = True
+    rag_system_prompt: str = DEFAULT_RAG_SYSTEM_PROMPT
     llm_provider: LlmProvider = "anthropic"
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"

@@ -333,13 +333,18 @@ locals {
   # `chatbot_app` is null when the chatbot is disabled; `app_env` is then empty
   # and only the chatbot's container env reads it.
   chatbot_app = try(local.apps["chatbot"], null)
-  app_env = local.chatbot_app == null ? {} : {
-    CHAINLIT_DEMO_USERNAME = "demo"
-    TOP_K                  = "20"
-    CHUNK_MAX_TOKENS       = "512"
-    AUTOEMBED_MODEL        = var.overrides.cluster.autoembed_model
-    DOCUMENT_DIRS          = "/app/assets/document_dirs"
-  }
+  app_env = local.chatbot_app == null ? {} : merge(
+    {
+      CHAINLIT_DEMO_USERNAME = "demo"
+      TOP_K                  = "20"
+      CHUNK_MAX_TOKENS       = "512"
+      AUTOEMBED_MODEL        = var.overrides.cluster.autoembed_model
+      DOCUMENT_DIRS          = "/app/assets/document_dirs"
+    },
+    var.chatbot.system_prompt == null ? {} : {
+      RAG_SYSTEM_PROMPT = var.chatbot.system_prompt
+    }
+  )
 
   # The debug database user borrows the first app's role_name and
   # database_name. atlas.tf intentionally drops collection_name so the public

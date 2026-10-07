@@ -205,6 +205,30 @@ run "queries_move_the_assets_hash" {
   }
 }
 
+run "chatbot_system_prompt_reaches_the_container_env" {
+  command = plan
+
+  variables {
+    chatbot = {
+      system_prompt = "Answer in one sentence."
+    }
+  }
+
+  assert {
+    condition     = local.app_env.RAG_SYSTEM_PROMPT == "Answer in one sentence."
+    error_message = "chatbot.system_prompt should land in the container env as RAG_SYSTEM_PROMPT"
+  }
+}
+
+run "chatbot_system_prompt_is_omitted_by_default" {
+  command = plan
+
+  assert {
+    condition     = !contains(keys(local.app_env), "RAG_SYSTEM_PROMPT")
+    error_message = "An unset chatbot.system_prompt should leave the app default in place"
+  }
+}
+
 run "extra_tags_merge_over_the_built_ins" {
   command = plan
 

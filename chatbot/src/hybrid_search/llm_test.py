@@ -37,3 +37,14 @@ def test_build_agent_bedrock_requires_region(monkeypatch: pytest.MonkeyPatch):
     )
     with pytest.raises(ValueError, match="AWS_REGION"):
         build_agent(settings)
+
+
+def test_build_agent_uses_configured_system_prompt(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("AWS_REGION", "us-east-1")
+    settings = HybridSearchSettings(
+        mongodb_uri=SecretStr("mongodb://localhost"),
+        llm_provider="bedrock",
+        rag_system_prompt="Answer with a single sentence.",
+    )
+    agent = build_agent(settings)
+    assert agent._system_prompts == ("Answer with a single sentence.",)
