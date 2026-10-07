@@ -68,10 +68,13 @@ module "chatbot" {
     "Hybrid ranking"      = "How does $rankFusion combine keyword and vector search results?"
     "Agent memory"        = "How do I store short-term and long-term memory for an agent in MongoDB?"
     "Automated embedding" = "How does Automated Embedding generate vectors at index time and query time?"
+    "How it was built"    = "How does the module build the app image and deploy it in one apply?"
+    "Security posture"    = "What network and IAM controls does this deployment use?"
   }
 
-  # Documents to ingest; a bare name uses the bundled corpus, a path or absolute path is used as-is.
-  document_dirs = ["why-mongodb-for-agents.md"]
+  # Documents to ingest; the default ingests the bundled repository docs.
+  # document_dirs = ["/bring/your/own/docs"]
+  # skip_repo_docs = true
 
   # Tags merged over the module's Example and Name tags.
   extra_tags = var.extra_tags # Name = var.app_name added by default

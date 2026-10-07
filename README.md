@@ -4,12 +4,19 @@ This repository holds an example pattern module that deploys the hybrid search c
 
 > This module is an example of a production-shaped deployment. It carries no stability guarantee and the repository may be archived if adoption does not materialize.
 
+![Chatbot UI](docs/images/chat-ui-placeholder.svg)
+
 <!-- BEGIN_TOC -->
 <!-- @generated
 WARNING: This section is auto-generated. Do not edit directly.
 Changes will be overwritten when documentation is regenerated.
 Run 'just gen-readme' to regenerate. -->
 - [Examples](#examples)
+- [Quickstart](#quickstart)
+- [Customize](#customize)
+- [Architecture](#architecture)
+- [Security and IAM](#security-and-iam)
+- [FAQ](#faq)
 - [Requirements](#requirements)
 - [Providers](#providers)
 - [Resources](#resources)
@@ -33,6 +40,114 @@ Feature | Name
 Chatbot | [Minimal deployment](./examples/minimal)
 
 <!-- END_TABLES -->
+
+## Quickstart
+
+One `terraform apply` deploys everything: the Atlas project and cluster, the AWS infrastructure, the app image, and the running service. The build runs in CodeBuild and pushes to ECR, and the service creates its search indexes and ingests the bundled corpus on startup.
+
+Prerequisites:
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) 1.10 or later.
+- An AWS account and credentials for the account you deploy into.
+- MongoDB Atlas credentials with access to your organization, because the module creates the project. See [Security and IAM](#security-and-iam).
+
+```sh
+terraform init
+terraform apply
+# open the CloudFront URL and sign in as `demo`
+terraform output https_url
+terraform output -raw chatbot_login_password
+```
+
+Set `features.verify_deployment_ready = true` to have the apply poll `/health` until the app is ready. The apply exports `https_url`, `chatbot`, `chatbot_login_password`, `connection_string_public`, and `extra_apps`. The [minimal example](./examples/minimal) is the copy-paste starting point.
+
+The demo signs in with a single shared username and password: `demo` and the `chatbot_login_password` output. It is meant for a walkthrough. A real application would use its own authentication and authorization, for example an SSO provider, per-user accounts, and role-based access.
+
+## Customize
+
+The three content inputs cover the common path: `queries` sets the starter questions, `document_dirs` sets the documents the app ingests, and `assets_dir` replaces the branding. Empty values keep the bundled demo content.
+
+The named internals and the bring-your-own mechanisms are reached through `overrides`: the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
+
+## Architecture
+
+The module composes the published Landing Zone modules with the app modules in this repository. One apply creates an Atlas project and cluster, a VPC with private networking, an ECS Fargate service behind CloudFront, and a CodeBuild image pipeline. See [docs/architecture.md](docs/architecture.md) for the request flow and the full resource list.
+
+## Security and IAM
+
+The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer permissions, the Atlas credential requirement, and the roles the module creates.
+
+## FAQ
+
+### What authentication does the demo use?
+
+A single shared username and password: `demo` and the `chatbot_login_password` output. The demo has no per-user accounts and no role model. A real application would put its own authentication and authorization in front of the app, for example an SSO provider, per-user accounts, and role-based access, and would not reuse the demo login.
+
+### How much does this cost?
+
+The stack bills while it is up. The inputs that move the bill are:
+
+- `features.waf`: the AWS Managed Rules Common Rule Set on CloudFront.
+- `features.vpc_endpoints`: the interface VPC endpoints, billed per AZ-hour.
+- `features.internet_egress`: a NAT gateway, billed hourly plus data.
+- `features.atlas_byok`: a customer-managed KMS key.
+- `features.atlas_s3_log_export` and `features.atlas_s3_backup_export`: the export S3 buckets.
+- `overrides.cluster`: the cluster type, shard count, and instance size.
+- `overrides.extra_apps`: each app adds Fargate compute and an ECR repository.
+- `overrides.byo_vpc`: your own VPC resources, billed by your account.
+- `overrides.networking.main.waf_disabled`: skip the WAF on the edge.
+
+The Atlas cluster, the load balancer, CloudFront, ECS Fargate, ECR, and Secrets Manager bill by default. Run `terraform destroy` when you are done.
+
+### What is the file upload size limit?
+
+The upload picker accepts PDF, txt, and md files, up to 20 files and 100 MB per batch.
+
+### How does the LLM answer work?
+
+The default provider is Amazon Bedrock. The ECS task role calls `bedrock-runtime` over a private interface endpoint, so there is no API key and no manual approval step.
+
+For a keyed provider, run `just create-llm-secret` to write the API key to Secrets Manager, then set `llm.provider` and `llm.secret_name` to the printed name. The recipe supports Anthropic, OpenAI, Gemini, and Grove keys. Grove also needs `llm.base_url`. Run `just delete-llm-secret` to remove the secret.
+
+### How do I use a more advanced Bedrock model?
+
+Set `llm.model` to the model id. A newer Amazon model or an Anthropic Claude model needs the `us.` inference-profile prefix, and a Claude model needs a one-time use-case form in the Bedrock console for the account.
+
+### How does ingest and search work?
+
+The app extracts and chunks each document, upserts one document per chunk into `chunks`, and Atlas Automated Embedding embeds each chunk inside the cluster. A question runs `$rankFusion` over a text pipeline and a vector pipeline, and the LLM answers from the top-ranked chunks. See [docs/architecture.md](docs/architecture.md) for the flow.
+
+### Why does search fail with `localhost:28000`?
+
+`$rankFusion` runs `$search` on the cluster, and `mongod` connects to Atlas Search (`mongot`) at `127.0.0.1:28000` on the same node. A connection refused error means `mongot` is not listening. Confirm `chunks.text_idx` and `chunks.autoembed_idx` are `READY` in the index status, and recreate them if they were never created.
+
+### What is the app secret name?
+
+`<app_name>-app`. For the minimal example that is `mongodb-chatbot-demo-app`.
+
+### What region does this example use?
+
+`regions[0]` (default `us-east-1`). The app runs in the first region.
+
+### How do I use a custom domain?
+
+Set `overrides.domain.aliases` and `overrides.domain.acm_certificate_arn`. The certificate must be in `us-east-1`.
+
+### How do I use my own VPC?
+
+Set `overrides.byo_vpc` with one entry per region. CloudFront reaches the internal load balancer through a VPC origin, which requires an internet gateway in the VPC, so a BYO VPC that serves the HTTP edge must already have one.
+
+### How do I add another app or a private worker?
+
+Set `overrides.extra_apps`. An entry with `routing` joins the shared edge. An entry with no `routing` is a private worker with no HTTP edge.
+
+### How do I debug with mongosh?
+
+Set `features.debug_access_for_cluster = true` to add the caller IP to the project access list and create a `debug` database user. Read the connection string from the `connection_string_public` output. Set `overrides.allowed_ip` to use a fixed IP instead of resolving the caller's.
+
+### Where do I find the Landing Zone module inputs?
+
+Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
 
 <!-- BEGIN_TF_DOCS -->
 <!-- @generated
@@ -270,7 +385,7 @@ Default: `{}`
 
 ### document_dirs
 
-Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. Each entry resolves one of three ways:
+Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. The bundled corpus is assembled from the repository docs unless `skip_repo_docs` is true. Each entry resolves one of three ways:
 
 - A bare name (no slash) resolves to the bundled corpus, for example `why-mongodb-for-agents.md`.
 - A path with a slash resolves relative to the working directory, for example `./docs/handbook/`.
@@ -279,6 +394,14 @@ Documents copied into the image under `assets/document_dirs/`. Empty keeps the b
 Type: `list(string)`
 
 Default: `[]`
+
+### skip_repo_docs
+
+Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus. A bare `document_dirs` name then fails validation, and only a path or absolute entry works.
+
+Type: `bool`
+
+Default: `false`
 
 ### assets_dir
 

@@ -30,6 +30,7 @@ sections:
       names:
         - queries
         - document_dirs
+        - skip_repo_docs
         - assets_dir
 
   - id: overrides

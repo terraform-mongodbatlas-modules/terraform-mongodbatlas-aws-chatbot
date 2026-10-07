@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-label="Placeholder for the deployment stack diagram">
+  <rect width="960" height="600" fill="#FFFFFF"/>
+  <text x="480" y="60" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#001E2B">Deployment stack</text>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#001E2B" text-anchor="middle">
+    <rect x="120" y="110" width="720" height="80" rx="10" fill="#E3FCF7" stroke="#00ED64"/>
+    <text x="480" y="158">Browser to CloudFront to ALB to ECS Fargate</text>
+    <rect x="120" y="230" width="720" height="80" rx="10" fill="#E3FCF7" stroke="#00ED64"/>
+    <text x="480" y="278">ECS Fargate to Atlas PrivateLink to cluster</text>
+    <rect x="120" y="350" width="720" height="80" rx="10" fill="#E3FCF7" stroke="#00ED64"/>
+    <text x="480" y="398">CodeBuild to ECR to ECS task</text>
+  </g>
+  <text x="480" y="520" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#5C6C75">Placeholder. The operator regenerates this diagram from a live state.</text>
+</svg>

@@ -6,8 +6,9 @@ Python and the AWS CLI. The tree mirrors the vendored `chatbot/assets/` paths an
 is always complete, so the buildspec can copy it over the app root wholesale and
 every file the Dockerfile `COPY`s exists.
 
-Order: copy the vendored defaults, render `demo_queries.yaml` from `queries`,
-replace `document_dirs/` when the caller supplies folders, then overlay
+Order: copy the vendored defaults, stage the bundled corpus from the repository
+docs unless `skip_repo_docs` is set, render `demo_queries.yaml` from `queries`,
+replace `document_dirs/` when the caller supplies entries, then overlay
 `assets_dir` last so a caller's files win. Files are copied byte for byte, so a
 PDF passes through with no conversion.
 """
@@ -21,6 +22,17 @@ import os
 import shutil
 from pathlib import Path
 
+# The bundled corpus: the repository docs, flattened to one corpus name each so a
+# bare `document_dirs` entry resolves without a path. Keep this in step with
+# `local.corpus_sources` in locals.tf.
+CORPUS_SOURCES = {
+    "README.md": "README.md",
+    "architecture.md": "docs/architecture.md",
+    "security-and-iam.md": "docs/security-and-iam.md",
+    "why-mongodb-for-agents.md": "docs/why-mongodb-for-agents.md",
+    "minimal-example.md": "examples/minimal/README.md",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -28,6 +40,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--staging-dir", required=True)
     parser.add_argument("--queries-b64", default="")
     parser.add_argument("--document-dirs-b64", default="")
+    parser.add_argument("--skip-repo-docs", default="false")
     parser.add_argument("--assets-dir", default="")
     return parser.parse_args()
 
@@ -46,31 +59,58 @@ def render_queries(staging: Path, queries: dict[str, str]) -> None:
     (staging / "demo_queries.yaml").write_text("\n".join(lines) + "\n")
 
 
-def resolve_document_entry(entry: str, vendored_document_dirs: Path) -> Path:
-    """Resolve one `document_dirs` entry.
+def stage_corpus(module_dir: Path, staging: Path) -> None:
+    """Copy the repository docs into the staging `document_dirs/` under their flat
+    corpus names, so a bare `document_dirs` entry resolves."""
+    target = staging / "document_dirs"
+    target.mkdir(parents=True, exist_ok=True)
+    for name, source_rel in CORPUS_SOURCES.items():
+        source = module_dir / source_rel
+        if not source.is_file():
+            raise SystemExit(f"corpus source not found: {source_rel}")
+        shutil.copy2(source, target / name)
 
-    A bare name (no path separator) resolves against the vendored corpus, so a
-    caller can name a bundled file. A path with a separator resolves relative to
-    the working directory; an absolute path is used as-is.
+
+def resolve_document_entry(entry: str, module_dir: Path, skip_repo_docs: bool) -> tuple[Path, str]:
+    """Resolve one `document_dirs` entry to a source path and a destination name.
+
+    A bare name (no path separator) resolves to the bundled corpus source and
+    keeps its corpus name, unless `skip_repo_docs` is set, in which case no corpus
+    is staged and a bare name cannot resolve. A path with a separator resolves
+    relative to the working directory; an absolute path is used as-is.
     """
     if os.path.isabs(entry) or "/" in entry or "\\" in entry:
-        return Path(entry)
-    return vendored_document_dirs / entry
+        source, dest_name = Path(entry), Path(entry).name
+    else:
+        if skip_repo_docs:
+            raise SystemExit(
+                f"skip_repo_docs is true, so a bare document_dirs name cannot resolve: {entry}"
+            )
+        if entry not in CORPUS_SOURCES:
+            known = ", ".join(sorted(CORPUS_SOURCES))
+            raise SystemExit(
+                f"bare document_dirs name is not a bundled corpus document: {entry} "
+                f"(known names: {known})"
+            )
+        source, dest_name = module_dir / CORPUS_SOURCES[entry], entry
+    if not source.exists():
+        raise SystemExit(f"document_dirs entry not found: {entry} (resolved to {source})")
+    return source, dest_name
 
 
-def replace_document_dirs(staging: Path, entries: list[str], vendored_document_dirs: Path) -> None:
+def replace_document_dirs(
+    staging: Path, entries: list[str], module_dir: Path, skip_repo_docs: bool
+) -> None:
     target = staging / "document_dirs"
+    resolved = [resolve_document_entry(entry, module_dir, skip_repo_docs) for entry in entries]
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
-    for entry in entries:
-        source = resolve_document_entry(entry, vendored_document_dirs)
-        if not source.exists():
-            raise SystemExit(f"document_dirs entry not found: {entry} (resolved to {source})")
+    for source, dest_name in resolved:
         if source.is_dir():
             shutil.copytree(source, target / source.name)
         else:
-            shutil.copy2(source, target / source.name)
+            shutil.copy2(source, target / dest_name)
 
 
 def main() -> None:
@@ -78,6 +118,7 @@ def main() -> None:
     module_dir = Path(args.module_dir).resolve()
     staging = Path(args.staging_dir)
     vendored = module_dir / "chatbot" / "assets"
+    skip_repo_docs = args.skip_repo_docs.lower() == "true"
 
     if not vendored.is_dir():
         raise SystemExit(f"vendored assets not found at {vendored}")
@@ -86,13 +127,16 @@ def main() -> None:
         shutil.rmtree(staging)
     shutil.copytree(vendored, staging)
 
+    if not skip_repo_docs:
+        stage_corpus(module_dir, staging)
+
     queries = decode_json(args.queries_b64)
     if queries:
         render_queries(staging, queries)
 
     document_dirs = decode_json(args.document_dirs_b64)
     if document_dirs:
-        replace_document_dirs(staging, document_dirs, vendored / "document_dirs")
+        replace_document_dirs(staging, document_dirs, module_dir, skip_repo_docs)
 
     if args.assets_dir:
         overlay = Path(args.assets_dir)

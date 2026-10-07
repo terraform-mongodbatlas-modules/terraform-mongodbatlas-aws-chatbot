@@ -16,6 +16,18 @@ locals {
   # The org is read from the credential, so there is no `atlas_org_id` input.
   atlas_org_id = data.mongodbatlas_roles_org_id.current.org_id
 
+  # --- Bundled corpus ---------------------------------------------------------
+  # The corpus ships in the image and is what the deployed chatbot answers from.
+  # It is assembled from the repository docs at render time. The key is the flat
+  # corpus name a caller uses in `document_dirs`; the value is the source file.
+  corpus_sources = {
+    "README.md"                 = "README.md"
+    "architecture.md"           = "docs/architecture.md"
+    "security-and-iam.md"       = "docs/security-and-iam.md"
+    "why-mongodb-for-agents.md" = "docs/why-mongodb-for-agents.md"
+    "minimal-example.md"        = "examples/minimal/README.md"
+  }
+
   # --- Tags -------------------------------------------------------------------
   # The two built-ins are hard-coded and not overridable; `extra_tags` adds keys
   # on top, and `skip_tags` removes the whole map.

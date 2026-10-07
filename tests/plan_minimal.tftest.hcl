@@ -163,12 +163,19 @@ run "built_in_tags_reach_the_composed_modules" {
 run "bare_document_name_resolves_to_the_bundled_corpus" {
   command = plan
 
+  # Every bundled corpus name should resolve as a bare entry.
   variables {
-    document_dirs = ["why-mongodb-for-agents.md"]
+    document_dirs = [
+      "README.md",
+      "architecture.md",
+      "security-and-iam.md",
+      "why-mongodb-for-agents.md",
+      "minimal-example.md",
+    ]
   }
 
   assert {
-    condition     = length(var.document_dirs) == 1
+    condition     = length(var.document_dirs) == 5
     error_message = "A bare document_dirs name should validate against the bundled corpus"
   }
 }
@@ -197,11 +204,73 @@ run "queries_move_the_assets_hash" {
   assert {
     condition = local.assets_content_hash != sha256(jsonencode({
       vendored       = local.vendored_assets_hash
+      corpus         = local.corpus_sources_hash
+      skip_repo_docs = var.skip_repo_docs
       queries        = {}
       document_dirs  = var.document_dirs
       override_files = local.assets_override_file_hashes
     }))
     error_message = "Setting queries should move local.assets_content_hash"
+  }
+}
+
+run "bundled_corpus_maps_flat_names_to_repository_docs" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      contains(keys(local.corpus_sources), "README.md"),
+      contains(keys(local.corpus_sources), "architecture.md"),
+      contains(keys(local.corpus_sources), "security-and-iam.md"),
+      contains(keys(local.corpus_sources), "why-mongodb-for-agents.md"),
+      local.corpus_sources["minimal-example.md"] == "examples/minimal/README.md",
+    ])
+    error_message = "The bundled corpus should map each flat name to a repository doc"
+  }
+}
+
+run "skip_repo_docs_moves_the_assets_hash" {
+  command = plan
+
+  variables {
+    skip_repo_docs = true
+  }
+
+  assert {
+    condition = local.assets_content_hash != sha256(jsonencode({
+      vendored       = local.vendored_assets_hash
+      corpus         = local.corpus_sources_hash
+      skip_repo_docs = false
+      queries        = var.queries
+      document_dirs  = var.document_dirs
+      override_files = local.assets_override_file_hashes
+    }))
+    error_message = "Setting skip_repo_docs should move local.assets_content_hash"
+  }
+}
+
+run "bare_document_name_fails_when_repo_docs_skipped" {
+  command = plan
+
+  variables {
+    skip_repo_docs = true
+    document_dirs  = ["why-mongodb-for-agents.md"]
+  }
+
+  expect_failures = [var.document_dirs]
+}
+
+run "path_document_entry_still_works_when_repo_docs_skipped" {
+  command = plan
+
+  variables {
+    skip_repo_docs = true
+    document_dirs  = ["./docs"]
+  }
+
+  assert {
+    condition     = length(var.document_dirs) == 1
+    error_message = "A path document_dirs entry should validate with skip_repo_docs set"
   }
 }
 

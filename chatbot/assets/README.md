@@ -18,9 +18,12 @@ Files a user of this example edits. The image copies this whole directory to
   creates them on first run from its packaged defaults.
 - **`demo_queries.yaml`**: Starter chips and the Demo picker. `label` is the chip
   text, `message` is the query.
-- **`document_dirs/`**: Ingest corpus, and the `DOCUMENT_DIRS` default. Ships a
-  short "why MongoDB for agents" write-up, so a fresh deploy is queryable with no
-  upload. The module replaces this directory with the caller's `document_dirs`.
+- **`document_dirs/`**: Ingest corpus, and the `DOCUMENT_DIRS` default. The
+  module assembles the corpus from the repository docs at render time, so a fresh
+  deploy is queryable with no upload and can answer questions about its own
+  repository. The module replaces this directory with the caller's
+  `document_dirs`; a bare entry resolves to a corpus document. Set
+  `skip_repo_docs = true` to ship no corpus and start empty.
 
 The app reads `demo_queries.yaml` from `assets/demo_queries.yaml` by default
 (`DEMO_QUERIES_PATH` overrides it). In the pattern module the whole directory is

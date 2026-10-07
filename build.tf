@@ -37,6 +37,13 @@ locals {
     filesha256("${path.module}/chatbot/assets/${f}")
   ]))
 
+  # Change detector for the bundled corpus, which is assembled from the
+  # repository docs at render time. A docs edit moves the image tag.
+  corpus_sources_hash = sha256(join("", [
+    for name, source in local.corpus_sources :
+    "${name}:${filesha256("${path.module}/${source}")}"
+  ]))
+
   # Content hash of everything the assets tree render consumes. `data.archive_file
   # .assets` defers to apply on the first run (it depends on the render), so the
   # image tag hashes this plan-known value instead of the zip, which keeps the
@@ -52,6 +59,8 @@ locals {
   )
   assets_content_hash = sha256(jsonencode({
     vendored       = local.vendored_assets_hash
+    corpus         = local.corpus_sources_hash
+    skip_repo_docs = var.skip_repo_docs
     queries        = var.queries
     document_dirs  = var.document_dirs
     override_files = local.assets_override_file_hashes
@@ -117,6 +126,7 @@ resource "terraform_data" "render_assets" {
       "--staging-dir ${path.module}/.render/assets",
       "--queries-b64 ${base64encode(jsonencode(var.queries))}",
       "--document-dirs-b64 ${base64encode(jsonencode(var.document_dirs))}",
+      "--skip-repo-docs ${var.skip_repo_docs ? "true" : "false"}",
       "--assets-dir \"${var.assets_dir == null ? "" : var.assets_dir}\"",
     ])
   }
@@ -325,4 +335,3 @@ resource "terraform_data" "build" {
     ])
   }
 }
-

@@ -18,6 +18,8 @@ Open the `https_url` in a browser and sign in with the demo credentials:
 - Username: `demo`
 - Password: `terraform output -raw chatbot_login_password`
 
+The demo uses a single shared login. A real application would use its own authentication and authorization instead.
+
 ## Expected output
 
 - `https_url`: the CloudFront URL for the chat UI.
@@ -51,7 +53,7 @@ terraform output -raw chatbot_login_password
 
 ## Customize
 
-This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, and `overrides`, see the [module README](../../README.md).
+This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md).
 
 ## Code snippet
 
@@ -130,10 +132,13 @@ module "chatbot" {
     "Hybrid ranking"      = "How does $rankFusion combine keyword and vector search results?"
     "Agent memory"        = "How do I store short-term and long-term memory for an agent in MongoDB?"
     "Automated embedding" = "How does Automated Embedding generate vectors at index time and query time?"
+    "How it was built"    = "How does the module build the app image and deploy it in one apply?"
+    "Security posture"    = "What network and IAM controls does this deployment use?"
   }
 
-  # Documents to ingest; a bare name uses the bundled corpus, a path or absolute path is used as-is.
-  document_dirs = ["why-mongodb-for-agents.md"]
+  # Documents to ingest; the default ingests the bundled repository docs.
+  # document_dirs = ["/bring/your/own/docs"]
+  # skip_repo_docs = true
 
   # Tags merged over the module's Example and Name tags.
   extra_tags = var.extra_tags # Name = var.app_name added by default

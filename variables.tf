@@ -70,7 +70,7 @@ variable "queries" {
 
 variable "document_dirs" {
   description = <<-EOT
-    Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. Each entry resolves one of three ways:
+    Documents copied into the image under `assets/document_dirs/`. Empty keeps the bundled corpus; a non-empty list replaces it. The bundled corpus is assembled from the repository docs unless `skip_repo_docs` is true. Each entry resolves one of three ways:
 
     - A bare name (no slash) resolves to the bundled corpus, for example `why-mongodb-for-agents.md`.
     - A path with a slash resolves relative to the working directory, for example `./docs/handbook/`.
@@ -79,18 +79,17 @@ variable "document_dirs" {
   type        = list(string)
   default     = []
 
-  # A bare name must exist in the bundled corpus. `fileset` is lenient about a
-  # missing path (it returns an empty set), and `fileexists` errors on a
-  # directory, so check a non-empty directory tree or a file.
+  # A bare name must be a bundled corpus document. A path entry (with a slash)
+  # bypasses this check and is validated by the rule below.
   validation {
     condition = alltrue([
       for entry in var.document_dirs :
       strcontains(entry, "/") || (
-        length(fileset("${path.module}/chatbot/assets/document_dirs/${entry}", "**")) > 0 ||
-        try(fileexists("${path.module}/chatbot/assets/document_dirs/${entry}"), false)
+        !var.skip_repo_docs &&
+        contains(keys(local.corpus_sources), entry)
       )
     ])
-    error_message = "Each bare document_dirs name must exist in the bundled corpus (chatbot/assets/document_dirs/)."
+    error_message = "Each bare document_dirs name must be a bundled corpus document (${join(", ", sort(keys(local.corpus_sources)))}) and skip_repo_docs must be false."
   }
 
   # A path must exist relative to the working directory, or be absolute.
@@ -104,6 +103,12 @@ variable "document_dirs" {
     ])
     error_message = "Each document_dirs path must exist relative to the working directory or as an absolute path."
   }
+}
+
+variable "skip_repo_docs" {
+  description = "Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus. A bare `document_dirs` name then fails validation, and only a path or absolute entry works."
+  type        = bool
+  default     = false
 }
 
 variable "assets_dir" {

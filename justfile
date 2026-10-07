@@ -280,6 +280,38 @@ dependabot-sdlc-triage:
     {{py}} shared.dependabot_sdlc_triage
 # === OK_EDIT: path-sync sdlc-validate ===
 
+# LLM SECRET
+# Write a raw LLM API key to Secrets Manager. Set llm.secret_name to the printed name.
+create-llm-secret name="mongodb-chatbot-llm" region="us-east-1":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	echo "Supported keyed providers. Set llm.provider to match the key:" >&2
+	echo "  anthropic  Anthropic API key, optional llm.model" >&2
+	echo "  openai     OpenAI API key, optional llm.model" >&2
+	echo "  gemini     Gemini API key, optional llm.model" >&2
+	echo "  grove      Grove API key, requires llm.base_url" >&2
+	read -r -s -p "LLM API key: " key
+	echo
+	if aws secretsmanager describe-secret --secret-id "{{name}}" --region "{{region}}" >/dev/null 2>&1; then
+	  aws secretsmanager put-secret-value --secret-id "{{name}}" --secret-string "${key}" --region "{{region}}" >/dev/null
+	else
+	  aws secretsmanager create-secret --name "{{name}}" --secret-string "${key}" --region "{{region}}" >/dev/null
+	fi
+	echo "{{name}}"
+
+# Delete the LLM API key secret from Secrets Manager. Remove llm.secret_name after.
+delete-llm-secret name="mongodb-chatbot-llm" region="us-east-1":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if ! aws secretsmanager describe-secret --secret-id "{{name}}" --region "{{region}}" >/dev/null 2>&1; then
+	  echo "Secret not found: {{name}}" >&2
+	  exit 1
+	fi
+	aws secretsmanager delete-secret --secret-id "{{name}}" --force-delete-without-recovery --region "{{region}}" >/dev/null
+	echo "Deleted {{name}}"
+# Write secrets/.env.local from a deployed stack for local docker compose (needs features.debug_access_for_cluster).
+dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.env.local":
+	just -f "{{justfile_directory()}}/chatbot/justfile" dump-local-env terraform_dir="{{terraform_dir}}" region="{{region}}" output="{{output}}"
 # LIVE SMOKE
 # Poll /health on a deployed stack. Stdlib only; reads the module output at the
 # workspace given by --module-dir, else HYBRID_SEARCH_URL.
