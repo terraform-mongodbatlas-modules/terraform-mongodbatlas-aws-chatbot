@@ -4,7 +4,7 @@ output "https_url" {
 }
 
 output "chatbot" {
-  description = "The chat app's image, login, secret, database access, IAM task role, ECS service, log group, target group, and build result. Null when chatbot.enabled is false."
+  description = "The chat app's image, login, secret, database access, region, IAM task role, ECS cluster and service names, log group, target group, and build result. Null when chatbot.enabled is false."
   value = local.chatbot_app == null ? null : merge(
     {
       enabled        = true
@@ -21,7 +21,7 @@ output "chatbot_login_password" {
 }
 
 output "extra_apps" {
-  description = "Per-app path, image, secret, database access, IAM task role, ECS service, log group, target group, and build result for overrides.extra_apps."
+  description = "Per-app path, image, secret, database access, region, IAM task role, ECS cluster and service names, log group, target group, and build result for overrides.extra_apps."
   value       = { for k in keys(var.overrides.extra_apps) : k => local.app_outputs[k] }
 }
 
