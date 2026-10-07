@@ -1,0 +1,20 @@
+# CodeBuild buildspec for the app image. Rendered by templatefile() in build.tf,
+# which substitutes ${ecr_repo_url} and has_assets. The $AWS_DEFAULT_REGION and
+# $IMAGE_TAG shell variables are set by CodeBuild at run time.
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin ${ecr_repo_url}
+%{ if has_assets ~}
+      # The secondary source "assets" is extracted to CODEBUILD_SRC_DIR_assets.
+      # Copy it over the app root so user files (document_dirs/, demo_queries.yaml,
+      # .chainlit/config.toml, public/) overwrite the vendored defaults. The tree
+      # is complete, so every file the Dockerfile COPYs exists.
+      - cp -R $CODEBUILD_SRC_DIR_assets/. .
+%{ endif ~}
+  build:
+    commands:
+      - docker build --platform linux/arm64 -f ${dockerfile_name} -t ${ecr_repo_url}:$IMAGE_TAG .
+      - docker push ${ecr_repo_url}:$IMAGE_TAG

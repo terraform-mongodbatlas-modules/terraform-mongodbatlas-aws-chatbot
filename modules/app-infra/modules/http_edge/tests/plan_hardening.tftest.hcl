@@ -1,0 +1,136 @@
+mock_provider "aws" {
+  override_during = plan
+
+  mock_data "aws_cloudfront_cache_policy" {
+    defaults = { id = "cache-disabled" }
+  }
+
+  mock_data "aws_cloudfront_origin_request_policy" {
+    defaults = { id = "origin-req" }
+  }
+
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = { id = "pl-cloudfront" }
+  }
+
+  mock_resource "aws_cloudfront_vpc_origin" {
+    defaults = { id = "vo-test" }
+  }
+}
+
+variables {
+  aws_region          = "us-east-1"
+  name                = "lz-main"
+  security_group_name = "lz-alb-main"
+  vpc_id              = "vpc-123"
+  private_subnet_ids  = ["subnet-a", "subnet-b"]
+}
+
+run "alb_sg_uses_cloudfront_prefix_list" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      length(aws_security_group.alb.ingress) == 1,
+      alltrue([
+        for r in aws_security_group.alb.ingress :
+        r.from_port == 80 && contains(r.prefix_list_ids, "pl-cloudfront") && (r.cidr_blocks == null || length(r.cidr_blocks) == 0)
+      ]),
+    ])
+    error_message = "ALB SG ingress must be CloudFront origin-facing prefix list on port 80, not 0.0.0.0/0"
+  }
+}
+
+run "alb_is_internal_in_private_subnets" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      aws_lb.this.internal == true,
+      aws_lb.this.subnets == toset(["subnet-a", "subnet-b"]),
+      output.vpc_origin_id == "vo-test",
+    ])
+    error_message = "ALB must be internal in the private subnets behind a VPC origin"
+  }
+}
+
+run "alb_and_cloudfront_idle_read_timeout_120" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      aws_lb.this.idle_timeout == 120,
+      alltrue([
+        for o in aws_cloudfront_distribution.this.origin :
+        o.vpc_origin_config[0].origin_read_timeout == 120
+      ]),
+    ])
+    error_message = "ALB idle_timeout and CloudFront VPC origin origin_read_timeout should default to 120"
+  }
+}
+
+run "distribution_uses_vpc_origin_and_no_header" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      alltrue([
+        for o in aws_cloudfront_distribution.this.origin :
+        length(o.vpc_origin_config) == 1 &&
+        try(o.vpc_origin_config[0].vpc_origin_id, "") == "vo-test" &&
+        length(o.custom_origin_config) == 0 &&
+        length(o.custom_header) == 0
+      ]),
+    ])
+    error_message = "Distribution origin must use vpc_origin_config, not custom_origin_config or custom_header"
+  }
+}
+
+run "waf_on_by_default" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      length(aws_wafv2_web_acl.this) == 1,
+      aws_wafv2_web_acl.this[0].scope == "CLOUDFRONT",
+      startswith(output.https_url, "https://"),
+      length(flatten([
+        for rule in aws_wafv2_web_acl.this[0].rule :
+        try(rule.statement[0].managed_rule_group_statement[0].rule_action_override, [])
+      ])) == 0,
+    ])
+    error_message = "WAF Common Rule Set should be attached with no CRS count overrides by default"
+  }
+}
+
+run "waf_can_be_disabled" {
+  command = plan
+
+  variables {
+    waf = { disabled = true }
+  }
+
+  assert {
+    condition     = length(aws_wafv2_web_acl.this) == 0
+    error_message = "waf.disabled = true should skip the Web ACL"
+  }
+}
+
+run "waf_counts_named_crs_rules" {
+  command = plan
+
+  variables {
+    waf = {
+      common_rule_set_count_rules = ["SizeRestrictions_BODY", "CrossSiteScripting_BODY"]
+    }
+  }
+
+  assert {
+    condition = toset(flatten([
+      for rule in aws_wafv2_web_acl.this[0].rule : [
+        for o in try(rule.statement[0].managed_rule_group_statement[0].rule_action_override, []) : o.name
+      ]
+    ])) == toset(["SizeRestrictions_BODY", "CrossSiteScripting_BODY"])
+    error_message = "common_rule_set_count_rules should count the named CRS rules"
+  }
+}
