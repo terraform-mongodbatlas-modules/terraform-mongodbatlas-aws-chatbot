@@ -11,7 +11,10 @@ variable "llm_provider" {
   nullable    = true
 
   validation {
-    condition     = var.llm_provider == null || contains(["anthropic", "bedrock", "openai", "gemini", "grove"], var.llm_provider)
+    condition = var.llm_provider == null || try(
+      contains(["anthropic", "bedrock", "openai", "gemini", "grove"], var.llm_provider),
+      false
+    )
     error_message = "provider must be anthropic, bedrock, openai, gemini, or grove."
   }
 }
