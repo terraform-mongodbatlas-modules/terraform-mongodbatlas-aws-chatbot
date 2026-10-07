@@ -74,10 +74,11 @@ variable "vpc_config" {
   validation {
     condition = !var.vpc_config.create || alltrue([
       for _, cfg in var.vpc_config.by_region :
-      cfg.az_count == null || (
+      cfg.az_count == null || try(
         cfg.az_count >= 1 &&
         cfg.az_count <= 6 &&
-        cfg.az_count == floor(cfg.az_count)
+        cfg.az_count == floor(cfg.az_count),
+        false
       )
     ])
     error_message = "vpc_config.by_region.*.az_count must be a whole number between 1 and 6 when create = true."
@@ -238,8 +239,10 @@ variable "http_edges" {
   validation {
     condition = alltrue([
       for _, edge in var.http_edges :
-      edge.acm_certificate_arn == null ||
-      element(split(":", edge.acm_certificate_arn), 3) == "us-east-1"
+      edge.acm_certificate_arn == null || try(
+        element(split(":", edge.acm_certificate_arn), 3) == "us-east-1",
+        false
+      )
     ])
     error_message = "http_edges.*.acm_certificate_arn must be in us-east-1 for CloudFront."
   }
@@ -284,7 +287,7 @@ variable "ecs_apps" {
   validation {
     condition = alltrue([
       for _, app in var.ecs_apps :
-      app.ecr_key == null || contains(keys(var.ecr_repositories), app.ecr_key)
+      app.ecr_key == null || try(contains(keys(var.ecr_repositories), app.ecr_key), false)
     ])
     error_message = "Each non-null ecs_apps.*.ecr_key must exist in ecr_repositories."
   }
@@ -317,7 +320,7 @@ variable "ecs_apps" {
   validation {
     condition = alltrue([
       for _, app in var.ecs_apps :
-      app.routing == null || contains(keys(var.http_edges), app.routing.edge)
+      app.routing == null || try(contains(keys(var.http_edges), app.routing.edge), false)
     ])
     error_message = "ecs_apps.*.routing.edge must reference a key in http_edges."
   }
@@ -339,9 +342,10 @@ variable "ecs_apps" {
   validation {
     condition = alltrue([
       for _, app in var.ecs_apps :
-      app.routing == null || (
+      app.routing == null || try(
         length(coalesce(app.routing.path_pattern, [])) > 0 ||
-        length(coalesce(app.routing.host_header, [])) > 0
+        length(coalesce(app.routing.host_header, [])) > 0,
+        false
       )
     ])
     error_message = "ecs_apps routing requires path_pattern or host_header."

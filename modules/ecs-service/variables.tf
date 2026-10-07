@@ -48,19 +48,26 @@ variable "routing" {
   default = null
 
   validation {
-    condition     = var.routing == null || (var.routing.listener_priority >= 1 && var.routing.listener_priority <= 50000)
+    condition = var.routing == null || try(
+      var.routing.listener_priority >= 1 && var.routing.listener_priority <= 50000,
+      false
+    )
     error_message = "routing.listener_priority must be between 1 and 50000."
   }
 
   validation {
-    condition     = var.routing == null || (var.routing.container_port >= 1 && var.routing.container_port <= 65535)
+    condition = var.routing == null || try(
+      var.routing.container_port >= 1 && var.routing.container_port <= 65535,
+      false
+    )
     error_message = "routing.container_port must be between 1 and 65535."
   }
 
   validation {
-    condition = var.routing == null || (
+    condition = var.routing == null || try(
       length(var.routing.path_pattern) > 0 ||
-      length(var.routing.host_header) > 0
+      length(var.routing.host_header) > 0,
+      false
     )
     error_message = "routing must set path_pattern or host_header so the listener rule has a condition."
   }

@@ -181,7 +181,7 @@ variable "chatbot" {
   }
 
   validation {
-    condition     = var.chatbot.dockerfile_path == null || fileexists(var.chatbot.dockerfile_path)
+    condition     = var.chatbot.dockerfile_path == null || try(fileexists(var.chatbot.dockerfile_path), false)
     error_message = "chatbot.dockerfile_path must point to an existing Dockerfile."
   }
 
@@ -316,7 +316,7 @@ variable "overrides" {
   validation {
     condition = alltrue([
       for _, app in var.overrides.extra_apps :
-      app.dockerfile_path == null || fileexists(app.dockerfile_path)
+      app.dockerfile_path == null || try(fileexists(app.dockerfile_path), false)
     ])
     error_message = "overrides.extra_apps.*.dockerfile_path must point to an existing Dockerfile."
   }
@@ -337,17 +337,18 @@ variable "overrides" {
   }
 
   validation {
-    condition = var.overrides.byo_vpc == null || alltrue([
+    condition = var.overrides.byo_vpc == null || try(alltrue([
       for region in keys(var.overrides.byo_vpc) :
       contains([for r in var.regions : replace(lower(r.name), "_", "-")], region)
-    ])
+    ]), false)
     error_message = "overrides.byo_vpc keys must match an AWS region in regions (for example us-east-1)."
   }
 
   validation {
-    condition = var.overrides.domain == null || (
+    condition = var.overrides.domain == null || try(
       length(coalesce(var.overrides.domain.aliases, [])) == 0 ||
-      var.overrides.domain.acm_certificate_arn != null
+      var.overrides.domain.acm_certificate_arn != null,
+      false
     )
     error_message = "overrides.domain.acm_certificate_arn is required when overrides.domain.aliases is set."
   }
