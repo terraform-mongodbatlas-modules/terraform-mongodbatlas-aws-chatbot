@@ -17,6 +17,10 @@ py := "PYTHONPATH=" + gh_dir + " " + uv_gh + " python -m"
 default:
     just --list
 # === OK_EDIT: path-sync core ===
+# Pass recipe arguments to recipe lines as shell positional parameters, so
+# variadic recipes can forward "$@" verbatim instead of interpolating text
+# into the command line, where the shell re-parses it.
+set positional-arguments := true
 # === DO_NOT_EDIT: path-sync checks ===
 # CHECKS
 pre-commit: fmt py-check validate-versions-tf validate lint check-docs
@@ -246,8 +250,9 @@ dev-vars-org org_id:
     {{py}} dev.dev_vars org {{org_id}}
 # === OK_EDIT: path-sync dev-vars-org ===
 
-dev-vars-chatbot org_id:
-    {{py}} dev.dev_vars chatbot {{org_id}}
+# Write tests/workspace_chatbot_examples/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
+dev-vars-chatbot env="dev" owner="owner@example.com":
+    {{py}} dev.dev_vars chatbot {{env}} {{owner}}
 # === DO_NOT_EDIT: path-sync regions ===
 # REGION EXTRACTION (for CSP modules with region mappings)
 extract-regions provider *args: # use --output-dir to specify the output directory
@@ -279,3 +284,44 @@ dependabot-sdlc-triage:
     # Reconcile Dependabot SDLC triage labels and guidance comments.
     {{py}} shared.dependabot_sdlc_triage
 # === OK_EDIT: path-sync sdlc-validate ===
+
+# LLM SECRET
+# Write a raw LLM API key to Secrets Manager. Set llm.secret_name to the printed name.
+create-llm-secret name="mongodb-chatbot-llm" region="us-east-1":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	echo "Supported keyed providers. Set llm.provider to match the key:" >&2
+	echo "  anthropic  Anthropic API key, optional llm.model" >&2
+	echo "  openai     OpenAI API key, optional llm.model" >&2
+	echo "  gemini     Gemini API key, optional llm.model" >&2
+	echo "  grove      Grove API key, requires llm.base_url" >&2
+	read -r -s -p "LLM API key: " key
+	echo
+	if aws secretsmanager describe-secret --secret-id "{{name}}" --region "{{region}}" >/dev/null 2>&1; then
+	  aws secretsmanager put-secret-value --secret-id "{{name}}" --secret-string "${key}" --region "{{region}}" >/dev/null
+	else
+	  aws secretsmanager create-secret --name "{{name}}" --secret-string "${key}" --region "{{region}}" >/dev/null
+	fi
+	echo "{{name}}"
+
+# Delete the LLM API key secret from Secrets Manager. Remove llm.secret_name after.
+delete-llm-secret name="mongodb-chatbot-llm" region="us-east-1":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if ! aws secretsmanager describe-secret --secret-id "{{name}}" --region "{{region}}" >/dev/null 2>&1; then
+	  echo "Secret not found: {{name}}" >&2
+	  exit 1
+	fi
+	aws secretsmanager delete-secret --secret-id "{{name}}" --force-delete-without-recovery --region "{{region}}" >/dev/null
+	echo "Deleted {{name}}"
+# Write secrets/.env.local from a deployed stack for local docker compose (needs features.debug_access_for_cluster).
+dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.env.local":
+	just -f "{{justfile_directory()}}/chatbot/justfile" dump-local-env terraform_dir="{{terraform_dir}}" region="{{region}}" output="{{output}}"
+# LIVE SMOKE
+# Poll /health on a deployed stack. Stdlib only; reads the module output at the
+# workspace given by --module-dir, else HYBRID_SEARCH_URL.
+public-test *args:
+    python3 {{justfile_directory()}}/scripts/health_poll.py "$@"
+
+plan-snapshot-test-chatbot *args:
+    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" "$@"

@@ -1,0 +1,29 @@
+output "vpc_id" {
+  value = module.vpc.vpc_id
+}
+
+output "private_subnets" {
+  value = module.vpc.private_subnets
+}
+
+output "vpc_cidr_block" {
+  value = module.vpc.vpc_cidr_block
+}
+
+output "private_route_table_ids" {
+  value = module.vpc.private_route_table_ids
+}
+
+output "natgw_ids" {
+  value = module.vpc.natgw_ids
+}
+
+output "public_subnets" {
+  value = module.vpc.public_subnets
+}
+
+output "igw_id" {
+  # Standalone when an edge region has neither NAT nor public subnets; otherwise
+  # the upstream module created the IGW alongside the public subnets.
+  value = local.standalone_igw ? one(aws_internet_gateway.standalone[*].id) : module.vpc.igw_id
+}

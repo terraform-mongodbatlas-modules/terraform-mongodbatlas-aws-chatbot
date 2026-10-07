@@ -1,0 +1,87 @@
+mock_provider "aws" {
+  override_during = plan
+}
+
+variables {
+  image_tag          = "0.0.1"
+  name               = "hybridrag-ui"
+  aws_region         = "us-east-1"
+  ecr_repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/hybridrag-ui"
+  network = {
+    vpc_id                = "vpc-aaa"
+    private_subnet_ids    = ["subnet-aaa", "subnet-bbb"]
+    ecs_security_group_id = "sg-ecs"
+  }
+  iam = {
+    task_role_arn           = "arn:aws:iam::123456789012:role/hybridrag-ui-ecs-task"
+    task_execution_role_arn = "arn:aws:iam::123456789012:role/hybridrag-ui-ecs-exec"
+  }
+  routing = {
+    listener_arn      = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/example/abc/def"
+    listener_priority = 100
+    path_pattern      = ["/*"]
+    container_port    = 8001
+    health_check_path = "/"
+  }
+  container = {
+    env = {
+      ENABLE_LLM       = "false"
+      MONGODB_URI      = "mongodb+srv://pl-0.example.mongodb.net/?authSource=%24external&authMechanism=MONGODB-AWS"
+      MONGODB_DATABASE = "hybridrag"
+    }
+    secret_keys = ["VOYAGE_API_KEY", "CHAINLIT_AUTH_SECRET", "CHAINLIT_DEMO_PASSWORD"]
+    secret_arn  = "arn:aws:secretsmanager:us-east-1:123456789012:secret:hybridrag-ui-app-AbCdEf"
+  }
+  task_cpu    = "1024"
+  task_memory = "2048"
+}
+
+run "creates_cluster_and_target_group" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      aws_ecs_cluster.this.name == "hybridrag-ui",
+      aws_ecs_service.this.name == "hybridrag-ui",
+      aws_lb_target_group.this[0].vpc_id == "vpc-aaa",
+      aws_lb_target_group.this[0].port == 8001,
+      aws_lb_target_group.this[0].health_check[0].path == "/",
+      aws_lb_target_group.this[0].health_check[0].interval == 10,
+      aws_lb_target_group.this[0].health_check[0].healthy_threshold == 2,
+      aws_lb_target_group.this[0].deregistration_delay == "30",
+      aws_ecs_service.this.deployment_minimum_healthy_percent == 100,
+      aws_ecs_service.this.deployment_maximum_percent == 200,
+      aws_ecs_service.this.deployment_circuit_breaker[0].enable == true,
+      aws_ecs_service.this.deployment_circuit_breaker[0].rollback == true,
+      aws_ecs_service.this.health_check_grace_period_seconds == 30,
+    ])
+    error_message = "Module should create the cluster, target group, and a zero-downtime rolling deploy"
+  }
+}
+
+run "task_secrets_use_json_keys" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      length(jsondecode(aws_ecs_task_definition.this.container_definitions)[0].secrets) == 3,
+      jsondecode(aws_ecs_task_definition.this.container_definitions)[0].secrets[0].valueFrom == "arn:aws:secretsmanager:us-east-1:123456789012:secret:hybridrag-ui-app-AbCdEf:VOYAGE_API_KEY::",
+      jsondecode(aws_ecs_task_definition.this.container_definitions)[0].secrets[1].name == "CHAINLIT_AUTH_SECRET",
+    ])
+    error_message = "Task secrets should use secret ARN JSON-key form, not a separate ARN map"
+  }
+}
+
+run "mongo_env_from_container_only" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      contains([for e in jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment : e.name], "MONGODB_URI"),
+      contains([for e in jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment : e.name], "MONGODB_DATABASE"),
+      !contains([for e in jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment : e.name], "MONGO_URL"),
+      !contains([for e in jsondecode(aws_ecs_task_definition.this.container_definitions)[0].environment : e.name], "DB_NAME"),
+    ])
+    error_message = "Mongo env should come from container.env with HybridRAG names"
+  }
+}

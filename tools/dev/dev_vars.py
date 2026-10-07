@@ -11,10 +11,12 @@ DEV_TFVARS = WORKSPACE_DIR / "dev.tfvars"
 
 
 @app.command()
-def chatbot(org_id: str) -> None:
-    """Generate dev.tfvars for the chatbot workspace tests."""
+def chatbot(env: str, owner: str) -> None:
+    """Write extra_tags to dev.tfvars so CI tags the resources it creates."""
     WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-    DEV_TFVARS.write_text(f'org_id = "{org_id}"\n')
+    DEV_TFVARS.write_text(
+        f'extra_tags = {{\n  "mongodb-env"   = "{env}"\n  "mongodb-owner" = "{owner}"\n}}\n'
+    )
     typer.echo(f"Generated {DEV_TFVARS}")
 
 

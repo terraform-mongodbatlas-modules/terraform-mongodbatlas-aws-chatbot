@@ -1,0 +1,7 @@
+```release-note:note
+module: Composes the Atlas, app infrastructure, and CodeBuild image pipeline into one root-module deployment
+```
+
+```release-note:enhancement
+module: Adds per-app runtime handles and database access to the chatbot and extra_apps outputs
+```
