@@ -4,7 +4,7 @@
 # is docs/16/g16-13_atlas-aws-chatbot-v010.md.
 
 variable "app_name" {
-  description = "Name for the Atlas project, the AWS resources, and the app image. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated."
+  description = "Logical name for the deployment and the default for `overrides.resource_prefix`. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated."
   type        = string
 
   validation {
@@ -226,15 +226,18 @@ variable "overrides" {
   description = <<-EOT
     The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
+    - `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
     - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-    - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+    - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
     - `networking`: the shared `main` edge every routing app uses.
     - `domain`: the custom-domain aliases and ACM certificate.
     - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
     - `skip_tags`: set no tags at all.
   EOT
   type = object({
+    resource_prefix = optional(string)
+
     byo_vpc = optional(map(object({
       vpc_id                  = string
       private_subnet_ids      = list(string)
@@ -321,19 +324,33 @@ variable "overrides" {
     error_message = "overrides.extra_apps.*.dockerfile_path must point to an existing Dockerfile."
   }
 
-  # A non-chatbot app uses its map key as `name`, which drives the ECR
+  validation {
+    condition = (
+      var.overrides.resource_prefix == null ||
+      (
+        length(var.overrides.resource_prefix) >= 1 &&
+        length(var.overrides.resource_prefix) <= 23 &&
+        can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.overrides.resource_prefix))
+      )
+    )
+    error_message = "overrides.resource_prefix must be 1 to 23 characters of lowercase letters, digits, and hyphens, and must start and end with a letter or digit."
+  }
+
+  # A non-chatbot app is named "<resource_prefix>-<key>", which drives the ECR
   # repository, ECS cluster/service/task family, ALB target group (32-char
-  # limit), and IAM role names. Keep the key DNS-safe and short, and do not let
-  # it collide with the chatbot's name (app_name) or the reserved `chatbot` key.
+  # limit), and IAM role names. Keep the key DNS-safe and short, do not reuse
+  # the reserved `chatbot` key or the prefix itself, and keep the combined
+  # "<resource_prefix>-<key>" within the target group's 32-character limit.
   validation {
     condition = alltrue([
       for k in keys(var.overrides.extra_apps) :
       length(k) <= 23 &&
       can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", k)) &&
-      k != var.app_name &&
-      k != "chatbot"
+      k != coalesce(var.overrides.resource_prefix, var.app_name) &&
+      k != "chatbot" &&
+      length("${coalesce(var.overrides.resource_prefix, var.app_name)}-${k}") <= 32
     ])
-    error_message = "overrides.extra_apps keys must be 1 to 23 characters of lowercase letters, digits, and hyphens (start and end with a letter or digit), and must not equal app_name or chatbot."
+    error_message = "overrides.extra_apps keys must be 1 to 23 characters of lowercase letters, digits, and hyphens (start and end with a letter or digit), must not equal resource_prefix or chatbot, and resource_prefix-key must be at most 32 characters (the ALB target group limit)."
   }
 
   validation {

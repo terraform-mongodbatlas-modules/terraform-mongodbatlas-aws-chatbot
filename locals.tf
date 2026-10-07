@@ -13,6 +13,12 @@ locals {
   aws_region  = local.regions_resolved[0].aws_name
   aws_regions = [for r in local.regions_resolved : r.aws_name]
 
+  # --- Naming -----------------------------------------------------------------
+  # One prefix names every resource the module creates. It defaults to app_name;
+  # set it to give two deployments that share an AWS account and region distinct
+  # names, or the same value to deliberately reuse names.
+  resource_prefix = coalesce(var.overrides.resource_prefix, var.app_name)
+
   # The org is read from the credential, so there is no `atlas_org_id` input.
   atlas_org_id = data.mongodbatlas_roles_org_id.current.org_id
 
@@ -34,7 +40,7 @@ locals {
   # on top, and `skip_tags` removes the whole map.
   tags = var.overrides.skip_tags ? {} : merge({
     Example = "atlas-aws-chatbot"
-    Name    = var.app_name
+    Name    = local.resource_prefix
   }, var.extra_tags)
 
   # --- LLM provider -----------------------------------------------------------
@@ -67,9 +73,17 @@ locals {
     var.overrides.extra_apps
   )
 
+  # The chatbot takes the bare prefix; an extra app is prefixed so two
+  # deployments that reuse a key do not collide.
+  app_names = {
+    for k in keys(local.apps_input) : k => (
+      k == "chatbot" ? local.resource_prefix : "${local.resource_prefix}-${k}"
+    )
+  }
+
   apps = {
     for k, cfg in local.apps_input : k => {
-      name                = k == "chatbot" ? var.app_name : k
+      name                = local.app_names[k]
       aws_region          = coalesce(try(cfg.aws_region, null), local.aws_region)
       image_url           = try(cfg.image_url, null)
       dockerfile_path     = try(cfg.dockerfile_path, null)
@@ -79,7 +93,7 @@ locals {
       task_memory         = coalesce(try(cfg.task_memory, null), local.container_sizes[try(cfg.container_size, "small")].memory)
       internet_egress     = try(cfg.internet_egress, false)
       ecr_key             = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null) ? k : null
-      runtime_secret_name = "${k == "chatbot" ? var.app_name : k}-app"
+      runtime_secret_name = "${local.app_names[k]}-app"
 
       db_access = {
         database_name   = coalesce(try(cfg.db_access.database_name, null), "hybrid_search")
@@ -249,7 +263,10 @@ locals {
     )
     create_kms_key = (
       var.features.atlas_byok ? {
+        # Scoped alias: the atlas-aws default `alias/atlas-encryption` is
+        # account-global, so two BYOK deployments would collide on it.
         enabled                 = true
+        alias                   = "alias/${local.resource_prefix}-atlas-encryption"
         deletion_window_in_days = 7
         enable_key_rotation     = true
         multi_region            = true
@@ -264,7 +281,7 @@ locals {
       var.features.atlas_s3_log_export ? {
         enabled         = true
         force_destroy   = true
-        name_prefix     = "${var.app_name}-logs-"
+        name_prefix     = "${local.resource_prefix}-logs-"
         expiration_days = 90
       } : null
     )
@@ -282,7 +299,7 @@ locals {
       var.features.atlas_s3_backup_export ? {
         enabled         = true
         force_destroy   = true
-        name_prefix     = "${var.app_name}-backup-"
+        name_prefix     = "${local.resource_prefix}-backup-"
         expiration_days = 365
       } : null
     )

@@ -113,7 +113,7 @@ Run 'just docs' to regenerate.
 
 ### app_name
 
-Name for the Atlas project, the AWS resources, and the app image. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated.
+Logical name for the deployment and the default for `overrides.resource_prefix`. Lowercase letters, digits, and hyphens; 1 to 23 characters so the Atlas cluster name is not truncated.
 
 Type: `string`
 
@@ -246,9 +246,10 @@ Default: `{}`
 
 The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
+- `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
 - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
-- `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge.
+- `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
 - `networking`: the shared `main` edge every routing app uses.
 - `domain`: the custom-domain aliases and ACM certificate.
 - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
@@ -258,6 +259,8 @@ Type:
 
 ```hcl
 object({
+  resource_prefix = optional(string)
+
   byo_vpc = optional(map(object({
     vpc_id                  = string
     private_subnet_ids      = list(string)

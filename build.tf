@@ -153,7 +153,7 @@ resource "aws_s3_bucket" "source" {
   for_each = local.build_enabled ? { for region in local.build_regions : region => region } : {}
 
   region        = each.key
-  bucket_prefix = "${var.app_name}-${each.key}-cb-"
+  bucket_prefix = "${local.resource_prefix}-${each.key}-cb-"
   force_destroy = true
 }
 
@@ -194,7 +194,7 @@ data "aws_iam_policy_document" "codebuild_assume" {
 resource "aws_iam_role" "codebuild" {
   count = local.build_enabled ? 1 : 0
 
-  name               = "${var.app_name}-codebuild"
+  name               = "${local.resource_prefix}-codebuild"
   assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
 }
 
@@ -247,7 +247,7 @@ data "aws_iam_policy_document" "codebuild" {
 resource "aws_iam_role_policy" "codebuild" {
   count = local.build_enabled ? 1 : 0
 
-  name   = "${var.app_name}-codebuild"
+  name   = "${local.resource_prefix}-codebuild"
   role   = aws_iam_role.codebuild[0].id
   policy = data.aws_iam_policy_document.codebuild[0].json
 }

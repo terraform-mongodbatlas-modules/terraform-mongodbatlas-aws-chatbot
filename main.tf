@@ -23,7 +23,7 @@ data "aws_secretsmanager_secret_version" "llm" {
 module "app_infra" {
   source = "./modules/app-infra"
 
-  default_resource_name_prefix = var.app_name
+  default_resource_name_prefix = local.resource_prefix
   regions                      = var.regions
   tags                         = local.tags
   ecr_repositories             = local.ecr_repositories
