@@ -23,7 +23,9 @@ Files a user of this example edits. The image copies this whole directory to
   deploy is queryable with no upload and can answer questions about its own
   repository. The module replaces this directory with the caller's
   `document_dirs`; a bare entry resolves to a corpus document. Set
-  `skip_repo_docs = true` to ship no corpus and start empty.
+  `skip_repo_docs = true` to ship no corpus and start empty on a fresh
+  deployment; the flag does not delete chunks an existing deployment already
+  ingested.
 
 The app reads `demo_queries.yaml` from `assets/demo_queries.yaml` by default
 (`DEMO_QUERIES_PATH` overrides it). In the pattern module the whole directory is

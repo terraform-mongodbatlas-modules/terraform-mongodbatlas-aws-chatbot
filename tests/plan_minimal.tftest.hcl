@@ -249,6 +249,26 @@ run "skip_repo_docs_moves_the_assets_hash" {
   }
 }
 
+run "corpus_hash_does_not_move_the_tag_when_repo_docs_skipped" {
+  command = plan
+
+  variables {
+    skip_repo_docs = true
+  }
+
+  assert {
+    condition = local.assets_content_hash == sha256(jsonencode({
+      vendored       = local.vendored_assets_hash
+      corpus         = ""
+      skip_repo_docs = true
+      queries        = {}
+      document_dirs  = var.document_dirs
+      override_files = local.assets_override_file_hashes
+    }))
+    error_message = "With skip_repo_docs the assets hash should not include the corpus sources hash"
+  }
+}
+
 run "bare_document_name_fails_when_repo_docs_skipped" {
   command = plan
 

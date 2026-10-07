@@ -18,7 +18,7 @@ The apply creates the following resources, grouped by ownership.
   - Optional customer-managed KMS encryption at rest, log export, and backup export to module-managed S3 buckets.
   - Optional debug database user, used with a local `mongosh` or a local app.
 - **AWS app infrastructure** (the `modules/app-infra` submodule)
-  - A VPC with private subnets, a NAT gateway, and an internet gateway.
+  - A VPC with private subnets, an internet gateway for the CloudFront VPC origin, and interface VPC endpoints. A NAT gateway is added only when the caller enables internet egress or skips the interface endpoints.
   - Interface VPC endpoints for ECR, CloudWatch Logs, Secrets Manager, and STS, plus the S3 gateway endpoint.
   - An ECR repository per built app.
   - An internal Application Load Balancer behind a CloudFront distribution, with the AWS Managed Rules Common Rule Set attached to the distribution.
@@ -46,6 +46,6 @@ The app ingests documents, embeds them inside Atlas, and answers questions with 
 
 ## Startup, indexes, and health
 
-The service creates the search indexes and ingests the bundled corpus in a background task on startup, so the first apply ends at a reachable chat UI with data to query. A chat session also creates missing indexes, so the two paths are idempotent.
+The service creates the search indexes and ingests the bundled corpus in a background task on startup. The chat UI is reachable while that task runs, and the data becomes queryable once ingestion finishes. Only `features.verify_deployment_ready` makes the apply wait for it. A chat session also creates missing indexes, so the two paths are idempotent.
 
 The app serves `GET /health` with no authentication. The response reports `indexes_ready`, `data_ingested`, and the status of each index. The Application Load Balancer target group health-checks `/health`, so the endpoint decides whether the task stays in service. With `features.verify_deployment_ready`, the apply polls `/health` and fails on a timeout.

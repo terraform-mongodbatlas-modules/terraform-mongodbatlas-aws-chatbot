@@ -67,7 +67,7 @@ The demo signs in with a single shared username and password: `demo` and the `ch
 
 The three content inputs cover the common path: `queries` sets the starter questions, `document_dirs` sets the documents the app ingests, and `assets_dir` replaces the branding. Empty values keep the bundled demo content.
 
-The named internals and the bring-your-own mechanisms are reached through `overrides`: the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
+The named internals and the bring-your-own mechanisms are reached through `overrides`: the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). The app container size is on the `chatbot` object: `chatbot.container_size`, `chatbot.task_cpu`, and `chatbot.task_memory`. See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
 
 ## Architecture
 
@@ -397,7 +397,7 @@ Default: `[]`
 
 ### skip_repo_docs
 
-Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus. A bare `document_dirs` name then fails validation, and only a path or absolute entry works.
+Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus on a fresh deployment. A bare `document_dirs` name then fails validation, and only a path or absolute entry works. The flag does not delete chunks an existing deployment already ingested.
 
 Type: `bool`
 

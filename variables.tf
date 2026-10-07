@@ -60,6 +60,11 @@ variable "features" {
     condition     = !var.features.verify_deployment_ready || var.chatbot.enabled
     error_message = "features.verify_deployment_ready requires chatbot.enabled."
   }
+
+  validation {
+    condition     = !var.features.verify_deployment_ready || !var.skip_repo_docs || length(var.document_dirs) > 0
+    error_message = "features.verify_deployment_ready needs a corpus to ingest, because /health reports data_ingested false on an empty corpus. Set document_dirs or leave skip_repo_docs false."
+  }
 }
 
 variable "queries" {
@@ -106,7 +111,7 @@ variable "document_dirs" {
 }
 
 variable "skip_repo_docs" {
-  description = "Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus. A bare `document_dirs` name then fails validation, and only a path or absolute entry works."
+  description = "Do not stage the repository docs into the bundled corpus. Set true to start with an empty corpus on a fresh deployment. A bare `document_dirs` name then fails validation, and only a path or absolute entry works. The flag does not delete chunks an existing deployment already ingested."
   type        = bool
   default     = false
 }

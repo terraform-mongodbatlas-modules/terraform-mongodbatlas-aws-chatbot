@@ -53,7 +53,7 @@ terraform output -raw chatbot_login_password
 
 ## Customize
 
-This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md).
+This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md). The named internals are reached through `overrides`: your own VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), a custom domain (`overrides.domain`), a fixed debug IP (`overrides.allowed_ip`), and extra apps (`overrides.extra_apps`).
 
 ## Code snippet
 

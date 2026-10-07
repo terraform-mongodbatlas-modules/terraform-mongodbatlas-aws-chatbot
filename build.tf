@@ -38,10 +38,12 @@ locals {
   ]))
 
   # Change detector for the bundled corpus, which is assembled from the
-  # repository docs at render time. A docs edit moves the image tag.
+  # repository docs at render time. A docs edit moves the image tag. A missing
+  # source hashes as "missing" so a partial module copy still validates; the
+  # render errors on it instead.
   corpus_sources_hash = sha256(join("", [
     for name, source in local.corpus_sources :
-    "${name}:${filesha256("${path.module}/${source}")}"
+    "${name}:${try(filesha256("${path.module}/${source}"), "missing")}"
   ]))
 
   # Content hash of everything the assets tree render consumes. `data.archive_file
@@ -57,9 +59,11 @@ locals {
       try([for f in fileset(entry, "**") : filesha256("${entry}/${f}")], [filesha256(entry)])
     ]),
   )
+  # The corpus hash counts only when the docs are staged; with skip_repo_docs a
+  # docs edit should not move the image tag, because none of those bytes render.
   assets_content_hash = sha256(jsonencode({
     vendored       = local.vendored_assets_hash
-    corpus         = local.corpus_sources_hash
+    corpus         = var.skip_repo_docs ? "" : local.corpus_sources_hash
     skip_repo_docs = var.skip_repo_docs
     queries        = var.queries
     document_dirs  = var.document_dirs
