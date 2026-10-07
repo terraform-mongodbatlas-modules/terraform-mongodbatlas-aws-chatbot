@@ -1,0 +1,159 @@
+locals {
+  image_uri      = "${var.ecr_repository_url}:${var.image_tag}"
+  log_group_name = "/ecs/${var.name}"
+}
+
+resource "aws_cloudwatch_log_group" "ecs" {
+  region            = var.aws_region
+  name              = local.log_group_name
+  retention_in_days = 7
+  tags              = var.tags
+}
+
+resource "aws_ecs_cluster" "this" {
+  region = var.aws_region
+  name   = var.name
+  tags   = var.tags
+}
+
+resource "aws_lb_target_group" "this" {
+  count = var.routing == null ? 0 : 1
+
+  region               = var.aws_region
+  name                 = var.name
+  port                 = try(var.routing.container_port, null)
+  protocol             = "HTTP"
+  vpc_id               = var.network.vpc_id
+  target_type          = "ip"
+  deregistration_delay = var.deregistration_delay
+
+  health_check {
+    path = try(var.routing.health_check_path, "/health")
+    # 10s interval with 2 healthy checks returns a recovered task to service in
+    # about 20s instead of the 30s x 5 defaults (~150s). unhealthy_threshold keeps
+    # the AWS default (2) so one slow check does not drain the target.
+    interval          = 10
+    healthy_threshold = 2
+  }
+
+  tags = var.tags
+}
+
+resource "aws_lb_listener_rule" "this" {
+  count = var.routing == null ? 0 : 1
+
+  region       = var.aws_region
+  listener_arn = try(var.routing.listener_arn, null)
+  priority     = try(var.routing.listener_priority, null)
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.this[0].arn
+  }
+
+  dynamic "condition" {
+    for_each = length(try(var.routing.path_pattern, [])) > 0 ? [1] : []
+    content {
+      path_pattern {
+        values = var.routing.path_pattern
+      }
+    }
+  }
+
+  dynamic "condition" {
+    for_each = length(try(var.routing.host_header, [])) > 0 ? [1] : []
+    content {
+      host_header {
+        values = var.routing.host_header
+      }
+    }
+  }
+}
+
+resource "aws_ecs_task_definition" "this" {
+  region                   = var.aws_region
+  family                   = var.name
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  execution_role_arn       = var.iam.task_execution_role_arn
+  task_role_arn            = var.iam.task_role_arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
+  container_definitions = jsonencode([{
+    name      = var.name
+    image     = local.image_uri
+    essential = true
+    portMappings = var.routing == null ? [] : [{
+      containerPort = var.routing.container_port
+      protocol      = "tcp"
+    }]
+    environment = [for k, v in var.container.env : { name = k, value = v }]
+    secrets = [
+      for key in var.container.secret_keys : {
+        name      = key
+        valueFrom = "${var.container.secret_arn}:${key}::"
+      }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.ecs.name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "ecs"
+      }
+    }
+  }])
+
+  tags = var.tags
+}
+
+resource "aws_ecs_service" "this" {
+  region          = var.aws_region
+  name            = var.name
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.this.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  wait_for_steady_state             = var.wait_for_steady_state
+  health_check_grace_period_seconds = var.routing == null ? 0 : var.health_check_grace_period_seconds
+
+  deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
+  deployment_maximum_percent         = var.deployment_maximum_percent
+
+  deployment_circuit_breaker {
+    enable   = var.deployment_circuit_breaker_enabled
+    rollback = var.deployment_circuit_breaker_rollback
+  }
+
+  timeouts {
+    create = var.deployment_timeout
+    update = var.deployment_timeout
+    delete = var.deployment_timeout
+  }
+
+  network_configuration {
+    subnets          = var.network.private_subnet_ids
+    security_groups  = [var.network.ecs_security_group_id]
+    assign_public_ip = false
+  }
+
+  dynamic "load_balancer" {
+    for_each = var.routing == null ? [] : [1]
+    content {
+      target_group_arn = aws_lb_target_group.this[0].arn
+      container_name   = var.name
+      container_port   = var.routing.container_port
+    }
+  }
+
+  depends_on = [aws_lb_listener_rule.this]
+
+  tags = var.tags
+}

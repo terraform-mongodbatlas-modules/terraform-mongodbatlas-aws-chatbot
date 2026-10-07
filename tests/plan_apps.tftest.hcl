@@ -1,0 +1,315 @@
+mock_provider "mongodbatlas" {
+  override_during = plan
+
+  mock_data "mongodbatlas_roles_org_id" {
+    defaults = { org_id = "org123" }
+  }
+}
+
+mock_provider "aws" {
+  override_during = plan
+
+  mock_data "aws_availability_zones" {
+    defaults = { names = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1e", "us-east-1f"] }
+  }
+
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "123456789012" }
+  }
+
+  mock_data "aws_iam_policy_document" {
+    defaults = { json = "{}" }
+  }
+
+  mock_data "aws_region" {
+    defaults = { name = "us-east-1" }
+  }
+
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = { id = "pl-cloudfront" }
+  }
+
+  mock_data "aws_cloudfront_cache_policy" {
+    defaults = { id = "cache-disabled" }
+  }
+
+  mock_data "aws_cloudfront_origin_request_policy" {
+    defaults = { id = "origin-req" }
+  }
+
+  mock_resource "aws_cloudfront_distribution" {
+    defaults = {
+      domain_name = "d111111abcdef8.cloudfront.net"
+      id          = "E123456789"
+    }
+  }
+
+  mock_resource "aws_cloudfront_vpc_origin" {
+    defaults = { id = "vo-test" }
+  }
+
+  mock_resource "aws_lb_listener" {
+    defaults = { arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/example/abc/def" }
+  }
+
+  mock_resource "aws_ecr_repository" {
+    defaults = { repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/app" }
+  }
+}
+
+mock_provider "random" {
+  override_during = plan
+
+  mock_resource "random_password" {
+    defaults = { result = "test-password" }
+  }
+}
+
+mock_provider "archive" {
+  override_during = plan
+
+  mock_data "archive_file" {
+    defaults = {
+      output_path         = ".build/app.zip"
+      output_base64sha256 = "app-hash"
+    }
+  }
+}
+
+mock_provider "time" {
+  override_during = plan
+}
+
+override_module {
+  target          = module.atlas_cluster
+  override_during = plan
+  outputs = {
+    connection_strings = {
+      standard_srv = "mongodb+srv://cluster.example.mongodb.net"
+      private_srv  = ""
+      private_endpoint = [{
+        srv_connection_string = "mongodb+srv://pl-0.example.mongodb.net"
+        endpoints             = []
+      }]
+    }
+  }
+}
+
+variables {
+  app_name = "mongodb-chatbot-demo"
+  overrides = {
+    extra_apps = {
+      api = {
+        image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
+        routing = {
+          path_pattern      = ["/api/*"]
+          listener_priority = 200
+        }
+      }
+      worker = {
+        dockerfile_path = "chatbot/Dockerfile"
+      }
+    }
+  }
+}
+
+run "extra_apps_expand_services_users_and_builds" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      length(module.ecs_service) == 3,
+      length(mongodbatlas_database_user.ecs) == 3,
+      length(module.app_infra.ecr_repositories) == 2,
+      local.apps["api"].ecr == false,
+      module.app_infra.ecs_apps["api"].ecr_repository_url == null,
+      local.app_image["api"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api",
+      local.app_image["api"].image_tag == "1.0",
+      contains(keys(local.build_apps), "worker"),
+      !contains(keys(local.build_apps), "api"),
+      length(aws_codebuild_project.image) == 2,
+    ])
+    error_message = "A caller image_url entry should resolve to that URI without a module repo by default, and a dockerfile_path entry should get its own build"
+  }
+}
+
+run "extra_apps_are_prefixed_with_resource_prefix" {
+  command = plan
+
+  variables {
+    overrides = {
+      resource_prefix = "team-a"
+      extra_apps = {
+        api = {
+          image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
+        }
+        worker = {
+          dockerfile_path = "chatbot/Dockerfile"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      local.apps["chatbot"].name == "team-a",
+      local.apps["api"].name == "team-a-api",
+      local.apps["worker"].name == "team-a-worker",
+      local.apps["worker"].runtime_secret_name == "team-a-worker-app",
+    ])
+    error_message = "resource_prefix should prefix the chatbot and every extra app, so two deployments that reuse a key do not collide"
+  }
+}
+
+run "resource_prefix_and_key_must_fit_the_target_group_name" {
+  command = plan
+
+  variables {
+    overrides = {
+      resource_prefix = "chatbot-local-branch-xx"
+      extra_apps = {
+        workerpool = {
+          routing = {
+            path_pattern      = ["/workerpool/*"]
+            listener_priority = 300
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}
+
+run "image_url_app_can_keep_the_repo" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        api = {
+          image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
+          ecr       = true
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
+        }
+        worker = {
+          dockerfile_path = "chatbot/Dockerfile"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      local.apps["api"].ecr == true,
+      length(module.app_infra.ecr_repositories) == 3,
+      module.app_infra.ecs_apps["api"].ecr_repository_url == "123456789012.dkr.ecr.us-east-1.amazonaws.com/app",
+      !contains(keys(local.build_apps), "api"),
+    ])
+    error_message = "An image_url extra app should be able to keep its module-managed repository when ecr = true"
+  }
+}
+
+run "an_app_with_no_routing_is_a_worker" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      local.apps["worker"].routing == null,
+      module.app_infra.ecs_apps["worker"].routing == null,
+      local.apps["api"].routing.listener_priority == 200,
+      length(local.routing_apps) == 2,
+    ])
+    error_message = "An extra app with no routing should compile to a null routing and attach no listener rule"
+  }
+}
+
+run "db_access_documents_the_granted_namespaces" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        api = {
+          db_access = {
+            database_name   = "shop"
+            role_name       = "read"
+            collection_name = "orders"
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      output.extra_apps["api"].db_access.role_name == "read",
+      output.extra_apps["api"].db_access.namespaces == tolist(["shop.orders"]),
+    ])
+    error_message = "An extra app's db_access output should name its role and the granted database.collection namespaces"
+  }
+}
+
+run "app_key_must_be_dns_safe" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        "Bad_Key" = {
+          routing = {
+            path_pattern      = ["/bad/*"]
+            listener_priority = 400
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}
+
+run "app_key_must_not_collide_with_app_name" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        "mongodb-chatbot-demo" = {
+          routing = {
+            path_pattern      = ["/other/*"]
+            listener_priority = 400
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}
+
+run "app_key_must_not_be_the_reserved_chatbot" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        chatbot = {
+          routing = {
+            path_pattern      = ["/other/*"]
+            listener_priority = 400
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}

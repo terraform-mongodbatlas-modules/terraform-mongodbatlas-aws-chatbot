@@ -1,0 +1,27 @@
+# `modules/ecs-service`
+
+ECS cluster, task definition, service, target group, and listener rule. Apply after the image exists.
+
+## Inputs
+
+Groups match `modules/app-infra` `ecs_apps` output. Extra JSON keys never enter this module.
+
+- **`name` / `aws_region` / `ecr_repository_url`:** Cluster and image.
+- **`network`:** `vpc_id`, `private_subnet_ids`, `ecs_security_group_id`. `vpc_id` is passed through from `ecs_apps.network`; the target group reads it directly so a pending image build cannot defer it and force a replacement.
+- **`iam`:** `task_role_arn`, `task_execution_role_arn`.
+- **`routing`:** Listener rule and target group. Includes `health_check_path` (default `/health`; example merge; not an lz output). The target group checks every 10s and needs 2 successes to return a recovered task to service (about 20s), so a brief Atlas outage drains and recovers the single task quickly.
+- **`container`:** Example-owned `env` and `secret_keys`. `secret_arn` is required when `secret_keys` is set. Task secrets use `valueFrom = "<secret_arn>:<key>::"`.
+- **`task_cpu` / `task_memory`:** Fargate size. Defaults `512` / `1024`.
+- **`image_tag`:** Appended to `ecr_repository_url`.
+- **`deployment_*` / `deregistration_delay`:** Rolling deploy settings. Defaults keep the old task serving until the new one is healthy (`minimum_healthy_percent = 100`, `maximum_percent = 200`) and roll back on failure (`deployment_circuit_breaker_enabled` / `_rollback` true). `deregistration_delay` is the target-group drain time in seconds (default 30).
+- **`health_check_grace_period_seconds`:** ALB health-check grace after a task starts. Default `30`, which suits a fast-booting app. Keep startup work (index or migration) in a separate one-shot task rather than the service entrypoint; a long startup needs a larger grace value.
+
+The example `app/` root reads the SM secret and passes these groups. Mongo env names live on `container.env` (for example `MONGODB_URI`, `MONGODB_DATABASE`). The module does not call Secrets Manager.
+
+The module creates the ECS cluster from `name`. It does not take a cluster ARN.
+
+Listener rule requires at least one of `path_pattern` or `host_header`.
+
+## Outputs
+
+- **`index_run`:** `{ aws_region, cluster, service }` for a one-shot `ecs run-task` against this service.
