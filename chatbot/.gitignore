@@ -1,0 +1,18 @@
+# Local caches and runtime files for the vendored app. Anchored paths keep the
+# tracked assets/.chainlit/config.toml and the assets/ defaults in the tree.
+/.venv/
+/.chainlit/
+/.files/
+/.pytest_cache/
+/.ruff_cache/
+/dist/
+/secrets/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Chainlit copies its packaged translations and creates an upload dir under the
+# config root (assets/) on first run. Only assets/.chainlit/config.toml is app
+# content; the rest is runtime state and must not be committed.
+/assets/.chainlit/translations/
+/assets/.files/

@@ -1,0 +1,13 @@
+[UI]
+name = "MongoDB for AI agents"
+description = "Ask how MongoDB supports AI agents, using Atlas hybrid search."
+language = "en-US"
+cot = "tool_call"
+custom_css = "/public/theme.css"
+custom_js = "/public/command-buttons.js"
+
+[features.spontaneous_file_upload]
+enabled = false
+
+[meta]
+generated_by = "2.11.1"
