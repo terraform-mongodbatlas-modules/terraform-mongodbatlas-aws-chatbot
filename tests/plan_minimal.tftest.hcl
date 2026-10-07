@@ -118,6 +118,36 @@ run "minimal_inputs_name_everything_from_app_name" {
   }
 }
 
+run "resource_prefix_overrides_app_name_in_names" {
+  command = plan
+
+  variables {
+    overrides = { resource_prefix = "team-a" }
+  }
+
+  assert {
+    condition = alltrue([
+      local.resource_prefix == "team-a",
+      local.apps["chatbot"].name == "team-a",
+      local.apps["chatbot"].runtime_secret_name == "team-a-app",
+      local.ecr_repositories["chatbot"].name == "team-a",
+      module.ecs_service["chatbot"].ecs_cluster_name == "team-a",
+      local.tags["Name"] == "team-a",
+    ])
+    error_message = "resource_prefix should name every resource while app_name stays the logical name"
+  }
+}
+
+run "resource_prefix_must_be_dns_safe" {
+  command = plan
+
+  variables {
+    overrides = { resource_prefix = "Bad_Prefix" }
+  }
+
+  expect_failures = [var.overrides]
+}
+
 run "built_image_resolves_to_the_module_repository" {
   command = plan
 

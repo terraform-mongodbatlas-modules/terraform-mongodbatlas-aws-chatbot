@@ -133,6 +133,58 @@ run "extra_apps_expand_services_users_and_builds" {
   }
 }
 
+run "extra_apps_are_prefixed_with_resource_prefix" {
+  command = plan
+
+  variables {
+    overrides = {
+      resource_prefix = "team-a"
+      extra_apps = {
+        api = {
+          image_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-api:1.0"
+          routing = {
+            path_pattern      = ["/api/*"]
+            listener_priority = 200
+          }
+        }
+        worker = {
+          dockerfile_path = "chatbot/Dockerfile"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      local.apps["chatbot"].name == "team-a",
+      local.apps["api"].name == "team-a-api",
+      local.apps["worker"].name == "team-a-worker",
+      local.apps["worker"].runtime_secret_name == "team-a-worker-app",
+    ])
+    error_message = "resource_prefix should prefix the chatbot and every extra app, so two deployments that reuse a key do not collide"
+  }
+}
+
+run "resource_prefix_and_key_must_fit_the_target_group_name" {
+  command = plan
+
+  variables {
+    overrides = {
+      resource_prefix = "chatbot-local-branch-xx"
+      extra_apps = {
+        workerpool = {
+          routing = {
+            path_pattern      = ["/workerpool/*"]
+            listener_priority = 300
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.overrides]
+}
+
 run "image_url_app_can_keep_the_repo" {
   command = plan
 

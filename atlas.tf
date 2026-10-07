@@ -59,7 +59,7 @@ module "atlas_project" {
   version = "~> 0.2"
 
   org_id = local.atlas_org_id
-  name   = var.app_name
+  name   = local.resource_prefix
   tags   = local.tags
   ip_access_list = var.features.debug_access_for_cluster ? [
     {
@@ -102,7 +102,7 @@ module "atlas_cluster" {
   version = "~> 0.4"
 
   project_id    = module.atlas_project.id
-  name          = var.app_name
+  name          = local.resource_prefix
   provider_name = "AWS"
   cluster_type  = var.overrides.cluster.cluster_type
   shard_count   = var.overrides.cluster.cluster_type == "SHARDED" ? var.overrides.cluster.shard_count : null
