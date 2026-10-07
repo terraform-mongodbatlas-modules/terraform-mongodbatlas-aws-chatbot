@@ -1,6 +1,8 @@
 examples_readme:
   readme_template: docs/example_readme.md
-  skip_examples: []
+  # minimal is a single copy-paste main.tf with no generated versions.tf, so the
+  # generator leaves it alone and the README is hand-written.
+  skip_examples: ["minimal"]
   code_snippet_files:
     additional: []
   template_vars:
@@ -18,14 +20,7 @@ tables:
   - name: Examples
     columns: ["feature", "name"]
     link_column: name
-    example_rows: []
-      # TODO: ADD examples here
-      # - folder_name: basic
-      #   feature: Project Setup
-      #   name: Basic Project with Settings and Limits
-      # - folder_name: dev_with_allowlist
-      #   feature: IP Access List
-      #   name: Development Project with IP Allowlist
-      # - folder_name: prod_secure_baseline
-      #   feature: Production Baseline
-      #   name: Production Secure Baseline with Maintenance Window
+    example_rows:
+      - folder_name: minimal
+        feature: Chatbot
+        name: Minimal deployment

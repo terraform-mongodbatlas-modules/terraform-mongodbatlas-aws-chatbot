@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Placeholder for a screenshot of the finished chat UI">
+  <rect width="960" height="540" fill="#001E2B"/>
+  <rect x="40" y="40" width="880" height="460" rx="12" fill="#FFFFFF"/>
+  <rect x="40" y="40" width="880" height="56" rx="12" fill="#00ED64"/>
+  <circle cx="72" cy="68" r="10" fill="#001E2B"/>
+  <text x="100" y="75" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#001E2B">Atlas AWS Chatbot</text>
+  <rect x="80" y="130" width="420" height="64" rx="10" fill="#E3FCF7"/>
+  <rect x="80" y="210" width="560" height="120" rx="10" fill="#F9FBFA" stroke="#C1C7C6"/>
+  <rect x="80" y="360" width="300" height="44" rx="10" fill="#E3FCF7"/>
+  <text x="480" y="290" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#5C6C75">Chat UI screenshot placeholder</text>
+</svg>

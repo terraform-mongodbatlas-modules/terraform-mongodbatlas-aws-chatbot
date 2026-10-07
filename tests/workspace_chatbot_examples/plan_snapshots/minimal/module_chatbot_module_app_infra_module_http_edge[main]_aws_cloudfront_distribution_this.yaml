@@ -1,0 +1,65 @@
+cache_tag_config: []
+connection_function_association: []
+custom_error_response: []
+default_cache_behavior:
+- allowed_methods:
+  - DELETE
+  - GET
+  - HEAD
+  - OPTIONS
+  - PATCH
+  - POST
+  - PUT
+  cache_policy_id: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+  cached_methods:
+  - GET
+  - HEAD
+  compress: false
+  forwarded_values: []
+  function_association: []
+  lambda_function_association: []
+  min_ttl: 0
+  origin_request_policy_id: b689b0a8-53d0-40ab-baf2-68738e2966ac
+  target_origin_id: alb
+  viewer_protocol_policy: redirect-to-https
+enabled: true
+http_version: http2
+is_ipv6_enabled: true
+logging_config: []
+ordered_cache_behavior: []
+origin:
+- connection_attempts: 3
+  connection_timeout: 10
+  custom_header: []
+  custom_origin_config: []
+  origin_access_control_id: ''
+  origin_id: alb
+  origin_path: ''
+  origin_shield: []
+  s3_origin_config: []
+  vpc_origin_config:
+  - origin_keepalive_timeout: 5
+    origin_read_timeout: 120
+    owner_account_id: ''
+origin_group: []
+price_class: PriceClass_100
+restrictions:
+- geo_restriction:
+  - restriction_type: none
+retain_on_delete: false
+staging: false
+tags:
+  Example: atlas-aws-chatbot
+  Name: mongodb-chatbot-demo
+  mongodb-env: dev
+  mongodb-owner: owner@example.com
+tags_all:
+  Example: atlas-aws-chatbot
+  Name: mongodb-chatbot-demo
+  mongodb-env: dev
+  mongodb-owner: owner@example.com
+viewer_certificate:
+- cloudfront_default_certificate: true
+  minimum_protocol_version: TLSv1
+viewer_mtls_config: []
+wait_for_deployment: true

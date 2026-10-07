@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" role="img" aria-label="Placeholder for the module abstraction iceberg diagram">
+  <rect width="960" height="640" fill="#FFFFFF"/>
+  <text x="480" y="50" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#001E2B">Module abstraction iceberg</text>
+  <line x1="0" y1="260" x2="960" y2="260" stroke="#5C6C75" stroke-dasharray="8 6"/>
+  <text x="20" y="250" font-family="Helvetica, Arial, sans-serif" font-size="16" fill="#5C6C75">above: the module call</text>
+  <text x="20" y="285" font-family="Helvetica, Arial, sans-serif" font-size="16" fill="#5C6C75">below: composed modules and resources</text>
+  <polygon points="480,110 620,260 340,260" fill="#00ED64"/>
+  <polygon points="340,260 620,260 720,430 240,430" fill="#A5F5D9"/>
+  <polygon points="240,430 720,430 800,570 160,570" fill="#C7E7E0"/>
+  <text x="480" y="360" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#001E2B">Root module and submodules</text>
+  <text x="480" y="510" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#001E2B">AWS and Atlas resources</text>
+  <text x="480" y="620" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#5C6C75">Placeholder. The operator regenerates this diagram from a live state.</text>
+</svg>

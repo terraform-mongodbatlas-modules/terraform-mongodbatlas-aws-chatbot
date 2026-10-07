@@ -1,0 +1,11 @@
+```release-note:enhancement
+example: Adds the minimal single-file deployment example
+```
+
+```release-note:note
+module: Documents the module and assembles the bundled corpus from the repository docs
+```
+
+```release-note:enhancement
+module: Keeps the demo starter questions in list order and bundles the make-it-your-own guide
+```

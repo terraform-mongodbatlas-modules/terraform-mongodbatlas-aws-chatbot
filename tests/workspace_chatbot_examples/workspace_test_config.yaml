@@ -1,0 +1,18 @@
+examples:
+  - name: minimal
+    sensitive_output: true
+    var_groups: [tags]
+    plan_regressions:
+      - address: module.chatbot.module.atlas_cluster.mongodbatlas_advanced_cluster.this
+      - address: module.chatbot.module.app_infra.module.http_edge["main"].aws_cloudfront_distribution.this
+
+var_groups:
+  # CI tags the resources it creates. The pre-release workflow sets mongodb-env to
+  # the active Atlas environment (dev/qa) and mongodb-owner from the MONGODB_OWNER
+  # repository variable. code-health always uses dev with a placeholder owner, so
+  # the committed plan snapshots do not leak the team email.
+  tags:
+    - name: extra_tags
+      expose_in_workspace: true
+      module_value: "{}"
+      var_type: map(string)
