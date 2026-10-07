@@ -1,6 +1,42 @@
 sections:
-  # TODO: ADD sections here
-  - id: optional
-    title: "Optional Variables"
+  - id: required
+    title: "Required Variables"
+    level: 2
+    match:
+      names:
+        - app_name
+
+  - id: features
+    title: "Deployment Variables"
+    level: 2
+    match:
+      names:
+        - regions
+        - features
+        - llm
+        - extra_tags
+
+  - id: chatbot
+    title: "Chatbot"
+    level: 2
+    match:
+      names:
+        - chatbot
+
+  - id: content
+    title: "Content Variables"
+    level: 2
+    match:
+      names:
+        - queries
+        - document_dirs
+        - skip_repo_docs
+        - assets_dir
+
+  - id: overrides
+    title: "Overrides"
     level: 2
     is_default: true
+    match:
+      names:
+        - overrides
