@@ -208,7 +208,7 @@ run "queries_move_the_assets_hash" {
       vendored       = local.vendored_assets_hash
       corpus         = local.corpus_sources_hash
       skip_repo_docs = var.skip_repo_docs
-      queries        = {}
+      queries        = []
       document_dirs  = var.document_dirs
       override_files = local.assets_override_file_hashes
     }))
