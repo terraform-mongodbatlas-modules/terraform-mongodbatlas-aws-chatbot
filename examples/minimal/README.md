@@ -24,6 +24,20 @@ Open the `https_url` in a browser and sign in with the demo credentials:
 - `chatbot.login_username`: `demo`.
 - `chatbot_login_password`: the demo password (sensitive; also stored in the app secret).
 
+## Prerequisites
+
+If you are familiar with Terraform and already have Atlas API credentials and AWS credentials configured, go to [commands](#commands).
+
+To deploy the hybrid search chatbot on AWS with Terraform:
+
+1. Install [Terraform](https://developer.hashicorp.com/terraform/install) to be able to run `terraform` [commands](#commands).
+2. [Sign in](https://account.mongodb.com/account/login) to or [create](https://account.mongodb.com/account/register) your MongoDB Atlas Account.
+3. Configure your [authentication](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs#authentication) method. The module creates the Atlas project, so the credential needs access to your Atlas organization.
+
+   **NOTE**: Service Accounts (SA) are the preferred authentication method. See [Grant Programmatic Access to an Organization](https://www.mongodb.com/docs/atlas/configure-api-access/#grant-programmatic-access-to-an-organization) in the MongoDB Atlas documentation for detailed instructions on configuring SA access to your project.
+
+4. Configure your AWS credentials for the account and region you deploy into.
+
 ## Commands
 
 ```sh
@@ -33,9 +47,11 @@ terraform apply
 # open the chat UI at the CloudFront URL and sign in as `demo`
 terraform output https_url
 terraform output -raw chatbot_login_password
-# cleanup
-terraform destroy
 ```
+
+## Customize
+
+This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, and `overrides`, see the [module README](../../README.md).
 
 ## Code snippet
 
@@ -71,22 +87,42 @@ variable "extra_tags" {
   default     = {}
 }
 
+# Deploys the chatbot app, its Atlas project and cluster, and the AWS infrastructure in one apply.
 module "chatbot" {
   source = "terraform-mongodbatlas-modules/aws-chatbot/mongodbatlas"
 
+  # Names the Atlas project, AWS resources, and app image; 1 to 23 lowercase characters.
   app_name = "mongodb-chatbot-demo"
 
+  # Opt-in features; every flag defaults, so omit the ones you leave at the demo setting.
   features = {
-    waf                      = true
-    vpc_endpoints            = true
-    internet_egress          = false
-    atlas_byok               = false
-    atlas_s3_log_export      = false
-    atlas_s3_backup_export   = false
+    # Attach the AWS Managed Rules Common Rule Set to the CloudFront distribution.
+    waf = true
+    # Keep the interface VPC endpoints in the VPC instead of reaching AWS APIs over NAT.
+    vpc_endpoints = true
+    # Allow HTTPS egress from the app security group through NAT.
+    internet_egress = false
+    # Create a customer-managed KMS key and enable Atlas encryption at rest with it.
+    atlas_byok = false
+    # Export Atlas logs to a module-managed S3 bucket.
+    atlas_s3_log_export = false
+    # Export Atlas backups to a module-managed S3 bucket.
+    atlas_s3_backup_export = false
+    # Add the caller IP and a debugging database user with widened access.
     debug_access_for_cluster = false
-    verify_deployment_ready  = true
+    # Poll /health from the apply and fail on a timeout.
+    verify_deployment_ready = true
   }
 
+  # Chat app settings; omit to deploy the demo unchanged, or set image_url, container_size, db_access, or system_prompt.
+  chatbot = {
+    system_prompt = "Answer the question using only the context snippets in the user message. Start with a few short bullet points that give the direct answer, then add a short paragraph with the supporting details and any caveats. If the context is insufficient, say so briefly."
+  }
+
+  # LLM provider; bedrock (default) needs no key, while anthropic, openai, gemini, and grove need secret_name.
+  llm = { provider = "bedrock" }
+
+  # UI questions keyed by the button label; {} keeps the bundled demo questions.
   queries = {
     "Why one database"    = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
     "Why not Postgres"    = "Why would an agent use MongoDB instead of a relational database like PostgreSQL?"
@@ -96,15 +132,11 @@ module "chatbot" {
     "Automated embedding" = "How does Automated Embedding generate vectors at index time and query time?"
   }
 
-  document_dirs = ["why-mongodb-for-agents.md"] # [] keeps the bundled corpus
-  llm           = { provider = "bedrock" }
-  extra_tags    = var.extra_tags # Name = var.app_name added by default
+  # Documents to ingest; a bare name uses the bundled corpus, a path or absolute path is used as-is.
+  document_dirs = ["why-mongodb-for-agents.md"]
 
-  # The app answers with short bullet points first, then a paragraph of details.
-  # Change the text to steer the answer shape; leave it out to keep the app default.
-  chatbot = {
-    system_prompt = "Answer the question using only the context snippets in the user message. Start with a few short bullet points that give the direct answer, then add a short paragraph with the supporting details and any caveats. If the context is insufficient, say so briefly."
-  }
+  # Tags merged over the module's Example and Name tags.
+  extra_tags = var.extra_tags # Name = var.app_name added by default
 }
 
 output "https_url" {
@@ -122,6 +154,14 @@ output "chatbot_login_password" {
   value       = module.chatbot.chatbot_login_password
   sensitive   = true
 }
+```
+
+## Tear down
+
+Remove the whole stack, including the Atlas project and the AWS resources, with one command:
+
+```sh
+terraform destroy
 ```
 
 ## Feedback or Help
