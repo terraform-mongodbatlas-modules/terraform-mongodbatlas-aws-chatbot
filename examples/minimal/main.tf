@@ -60,17 +60,16 @@ module "chatbot" {
   # LLM provider; bedrock (default) needs no key, while anthropic, openai, gemini, and grove need secret_name.
   llm = { provider = "bedrock" }
 
-  # UI questions keyed by the button label; {} keeps the bundled demo questions.
-  queries = {
-    "Why one database"    = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
-    "Why not Postgres"    = "Why would an agent use MongoDB instead of a relational database like PostgreSQL?"
-    "Agent components"    = "What are the main components of an AI agent?"
-    "Hybrid ranking"      = "How does $rankFusion combine keyword and vector search results?"
-    "Agent memory"        = "How do I store short-term and long-term memory for an agent in MongoDB?"
-    "Automated embedding" = "How does Automated Embedding generate vectors at index time and query time?"
-    "How it was built"    = "How does the module build the app image and deploy it in one apply?"
-    "Security posture"    = "What network and IAM controls does this deployment use?"
-  }
+  # UI questions, in the order the chips appear; [] keeps the bundled demo questions.
+  queries = [
+    { label = "Why one database", message = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?" },
+    { label = "Why not Postgres", message = "Why would an agent use MongoDB instead of a relational database like PostgreSQL?" },
+    { label = "Hybrid ranking", message = "How does $rankFusion combine keyword and vector search results?" },
+    { label = "Agent memory", message = "How do I store short-term and long-term memory for an agent in MongoDB?" },
+    { label = "Embedding freshness", message = "How does Automated Embedding keep vectors in sync when the underlying document changes?" },
+    { label = "Security posture", message = "What network and IAM controls does this deployment use?" },
+    { label = "Make it your own", message = "How do I make this demo my own?" },
+  ]
 
   # Documents to ingest; the default ingests the bundled repository docs.
   # document_dirs = ["/bring/your/own/docs"]

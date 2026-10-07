@@ -377,11 +377,18 @@ Default: `{}`
 
 ### queries
 
-Example questions rendered to `assets/demo_queries.yaml`, keyed by the label shown in the UI. Empty keeps the app's bundled file.
+Example questions rendered to `assets/demo_queries.yaml`, in list order. Each entry sets the `label` shown in the UI and the `message` it sends. Empty keeps the app's bundled file.
 
-Type: `map(string)`
+Type:
 
-Default: `{}`
+```hcl
+list(object({
+  label   = string
+  message = string
+}))
+```
+
+Default: `[]`
 
 ### document_dirs
 

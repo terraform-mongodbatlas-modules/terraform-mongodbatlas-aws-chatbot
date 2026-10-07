@@ -30,6 +30,7 @@ CORPUS_SOURCES = {
     "architecture.md": "docs/architecture.md",
     "security-and-iam.md": "docs/security-and-iam.md",
     "why-mongodb-for-agents.md": "docs/why-mongodb-for-agents.md",
+    "make-it-your-own.md": "docs/make-it-your-own.md",
     "minimal-example.md": "examples/minimal/README.md",
 }
 
@@ -51,11 +52,11 @@ def decode_json(value: str):
     return json.loads(base64.b64decode(value))
 
 
-def render_queries(staging: Path, queries: dict[str, str]) -> None:
+def render_queries(staging: Path, queries: list[dict[str, str]]) -> None:
     lines = ["queries:"]
-    for label in sorted(queries):
-        lines.append(f"  - label: {json.dumps(label)}")
-        lines.append(f"    message: {json.dumps(queries[label])}")
+    for query in queries:
+        lines.append(f"  - label: {json.dumps(query['label'])}")
+        lines.append(f"    message: {json.dumps(query['message'])}")
     (staging / "demo_queries.yaml").write_text("\n".join(lines) + "\n")
 
 

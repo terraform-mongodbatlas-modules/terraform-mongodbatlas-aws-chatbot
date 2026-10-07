@@ -3,11 +3,13 @@ queries:
     message: "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
   - label: Why not Postgres
     message: "Why would an agent use MongoDB instead of a relational database like PostgreSQL?"
-  - label: Agent components
-    message: "What are the main components of an AI agent?"
   - label: Hybrid ranking
     message: "How does $rankFusion combine keyword and vector search results?"
   - label: Agent memory
     message: "How do I store short-term and long-term memory for an agent in MongoDB?"
-  - label: Automated embedding
-    message: "How does Automated Embedding generate vectors at index time and query time?"
+  - label: Embedding freshness
+    message: "How does Automated Embedding keep vectors in sync when the underlying document changes?"
+  - label: Security posture
+    message: "What network and IAM controls does this deployment use?"
+  - label: Make it your own
+    message: "How do I make this demo my own?"

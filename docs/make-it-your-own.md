@@ -4,7 +4,7 @@ This guide is experimental. It covers inputs and workflows that the examples do 
 
 ## Content
 
-- **`queries`:** the starter questions, keyed by the label shown in the UI.
+- **`queries`:** the starter questions, an ordered list of `{ label, message }` objects. Each `label` is the chip shown in the UI and each `message` is the question it sends. The chips appear in list order. Empty keeps the app's bundled questions.
 - **`document_dirs`:** the documents to ingest. A bare name resolves to the bundled corpus; a path or an absolute path is used as-is.
 - **`assets_dir`:** a directory mirroring the app's `assets/` tree, copied over the rendered defaults. Replace `.chainlit/config.toml`, `chainlit.md`, and `public/` to rebrand.
 - **`chatbot.system_prompt`:** the RAG system prompt the app answers with.
@@ -31,6 +31,26 @@ Apply with `features.debug_access_for_cluster = true`, then run `just dump-local
 - **`overrides.allowed_ip`:** a fixed debug IP instead of resolving the caller's.
 - **`overrides.networking`:** the shared edge settings, for example `waf_disabled`.
 - **`overrides.skip_tags`:** set no tags at all.
+
+## Demo questions by persona
+
+Tailor the starter set to who is in the room: a developer or platform engineer, an applied AI engineer, a founder or CTO, a VP or security reviewer, a data engineer coming from Postgres and a vector store, or a pre-sales SA. Pick from the list below, or write your own.
+
+The bundled corpus answers the MongoDB questions (Why one database, Why not Postgres, Hybrid ranking, Agent memory, Embedding freshness) and the deployment question (Security posture). Make it your own answers generically from this guide's bundled copy. A question about your own product needs your documents, so add them with `document_dirs`.
+
+```hcl
+queries = [
+  { label = "Why one database", message = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?" },
+  { label = "Why not Postgres", message = "Why would an agent use MongoDB instead of a relational database like PostgreSQL?" },
+  { label = "Hybrid ranking", message = "How does $rankFusion combine keyword and vector search results?" },
+  { label = "Agent memory", message = "How do I store short-term and long-term memory for an agent in MongoDB?" },
+  { label = "Embedding freshness", message = "How does Automated Embedding keep vectors in sync when the underlying document changes?" },
+  { label = "Security posture", message = "What network and IAM controls does this deployment use?" },
+  { label = "Make it your own", message = "How do I make this demo my own?" },
+]
+```
+
+The chips appear in list order. Reorder or drop entries to fit the audience.
 
 ## Landing Zone modules
 

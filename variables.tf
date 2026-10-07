@@ -63,9 +63,12 @@ variable "features" {
 }
 
 variable "queries" {
-  description = "Example questions rendered to `assets/demo_queries.yaml`, keyed by the label shown in the UI. Empty keeps the app's bundled file."
-  type        = map(string)
-  default     = {}
+  description = "Example questions rendered to `assets/demo_queries.yaml`, in list order. Each entry sets the `label` shown in the UI and the `message` it sends. Empty keeps the app's bundled file."
+  type = list(object({
+    label   = string
+    message = string
+  }))
+  default = []
 }
 
 variable "document_dirs" {

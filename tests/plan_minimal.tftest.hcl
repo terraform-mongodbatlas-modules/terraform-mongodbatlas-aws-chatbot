@@ -170,12 +170,13 @@ run "bare_document_name_resolves_to_the_bundled_corpus" {
       "architecture.md",
       "security-and-iam.md",
       "why-mongodb-for-agents.md",
+      "make-it-your-own.md",
       "minimal-example.md",
     ]
   }
 
   assert {
-    condition     = length(var.document_dirs) == 5
+    condition     = length(var.document_dirs) == 6
     error_message = "A bare document_dirs name should validate against the bundled corpus"
   }
 }
@@ -194,9 +195,10 @@ run "queries_move_the_assets_hash" {
   command = plan
 
   variables {
-    queries = {
-      "Why one database" = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
-    }
+    queries = [{
+      label   = "Why one database"
+      message = "Why would an agent store retrieval and memory in the same database instead of a separate vector store?"
+    }]
   }
 
   # The hash drives the image tag, so a change to queries must move it and start
@@ -223,6 +225,7 @@ run "bundled_corpus_maps_flat_names_to_repository_docs" {
       contains(keys(local.corpus_sources), "architecture.md"),
       contains(keys(local.corpus_sources), "security-and-iam.md"),
       contains(keys(local.corpus_sources), "why-mongodb-for-agents.md"),
+      local.corpus_sources["make-it-your-own.md"] == "docs/make-it-your-own.md",
       local.corpus_sources["minimal-example.md"] == "examples/minimal/README.md",
     ])
     error_message = "The bundled corpus should map each flat name to a repository doc"

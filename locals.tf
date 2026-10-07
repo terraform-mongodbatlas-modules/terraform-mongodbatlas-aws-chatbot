@@ -25,6 +25,7 @@ locals {
     "architecture.md"           = "docs/architecture.md"
     "security-and-iam.md"       = "docs/security-and-iam.md"
     "why-mongodb-for-agents.md" = "docs/why-mongodb-for-agents.md"
+    "make-it-your-own.md"       = "docs/make-it-your-own.md"
     "minimal-example.md"        = "examples/minimal/README.md"
   }
 
