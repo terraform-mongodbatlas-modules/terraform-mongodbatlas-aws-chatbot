@@ -179,6 +179,32 @@ run "an_app_with_no_routing_is_a_worker" {
   }
 }
 
+run "db_access_documents_the_granted_namespaces" {
+  command = plan
+
+  variables {
+    overrides = {
+      extra_apps = {
+        api = {
+          db_access = {
+            database_name   = "shop"
+            role_name       = "read"
+            collection_name = "orders"
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      output.extra_apps["api"].db_access.role_name == "read",
+      output.extra_apps["api"].db_access.namespaces == tolist(["shop.orders"]),
+    ])
+    error_message = "An extra app's db_access output should name its role and the granted database.collection namespaces"
+  }
+}
+
 run "app_key_must_be_dns_safe" {
   command = plan
 

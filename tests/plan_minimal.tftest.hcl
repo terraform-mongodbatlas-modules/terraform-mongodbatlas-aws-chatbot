@@ -314,3 +314,24 @@ run "extra_tags_merge_over_the_built_ins" {
     error_message = "extra_tags should merge over the built-in Name and Example tags"
   }
 }
+
+run "outputs_expose_the_per_app_runtime_handles" {
+  command = plan
+
+  # The ECS names, log group, and region are config-derived and known at plan;
+  # the IAM role and target group ARNs are computed, so assert the keys only.
+  assert {
+    condition = alltrue([
+      output.chatbot.aws_region == "us-east-1",
+      output.chatbot.ecs_cluster_name == "mongodb-chatbot-demo",
+      output.chatbot.ecs_service_name == "mongodb-chatbot-demo",
+      output.chatbot.log_group_name == "/ecs/mongodb-chatbot-demo",
+      output.chatbot.secret_name == "mongodb-chatbot-demo-app",
+      output.chatbot.db_access.role_name == "readWrite",
+      output.chatbot.db_access.namespaces == tolist(["hybrid_search.*"]),
+      contains(keys(output.chatbot), "task_role_arn"),
+      contains(keys(output.chatbot), "target_group_arn"),
+    ])
+    error_message = "The chatbot output should carry the ECS, log, IAM, target-group, and database-access handles"
+  }
+}

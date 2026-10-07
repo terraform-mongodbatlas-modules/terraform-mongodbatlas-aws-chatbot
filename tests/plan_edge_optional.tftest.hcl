@@ -121,6 +121,8 @@ run "worker_only_apps_create_no_edge" {
       output.https_url == null,
       length(output.extra_apps) == 1,
       output.extra_apps["worker"].path_pattern == null,
+      output.extra_apps["worker"].target_group_arn == null,
+      output.extra_apps["worker"].ecs_service_name == "worker",
     ])
     error_message = "A worker-only app set should skip the ALB, CloudFront, and WAF and expose a null URL"
   }

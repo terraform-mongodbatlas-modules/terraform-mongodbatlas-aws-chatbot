@@ -4,18 +4,14 @@ output "https_url" {
 }
 
 output "chatbot" {
-  description = "The chat app's image, login, secret name, and build result. Null when chatbot.enabled is false."
-  value = local.chatbot_app == null ? null : {
-    enabled        = true
-    image_uri      = "${local.app_image["chatbot"].ecr_repository_url}:${local.app_image["chatbot"].image_tag}"
-    login_username = "demo"
-    secret_name    = aws_secretsmanager_secret.app["chatbot"].name
-    image_build = contains(keys(terraform_data.build), "chatbot") ? {
-      image_tag = local.app_image["chatbot"].image_tag
-      project   = aws_codebuild_project.image["chatbot"].name
-      region    = local.apps["chatbot"].aws_region
-    } : null
-  }
+  description = "The chat app's image, login, secret, database access, IAM task role, ECS service, log group, target group, and build result. Null when chatbot.enabled is false."
+  value = local.chatbot_app == null ? null : merge(
+    {
+      enabled        = true
+      login_username = "demo"
+    },
+    local.app_outputs["chatbot"]
+  )
 }
 
 output "chatbot_login_password" {
@@ -25,19 +21,8 @@ output "chatbot_login_password" {
 }
 
 output "extra_apps" {
-  description = "Per-app path, image, secret name, and build result for overrides.extra_apps."
-  value = {
-    for k, app in var.overrides.extra_apps : k => {
-      path_pattern = try(local.apps[k].routing.path_pattern, null)
-      image_uri    = "${local.app_image[k].ecr_repository_url}:${local.app_image[k].image_tag}"
-      secret_name  = aws_secretsmanager_secret.app[k].name
-      image_build = contains(keys(terraform_data.build), k) ? {
-        image_tag = local.app_image[k].image_tag
-        project   = aws_codebuild_project.image[k].name
-        region    = local.apps[k].aws_region
-      } : null
-    }
-  }
+  description = "Per-app path, image, secret, database access, IAM task role, ECS service, log group, target group, and build result for overrides.extra_apps."
+  value       = { for k in keys(var.overrides.extra_apps) : k => local.app_outputs[k] }
 }
 
 output "connection_string_public" {

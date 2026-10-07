@@ -373,4 +373,38 @@ locals {
       collection_name = null
     }
   )
+
+  # --- App outputs ------------------------------------------------------------
+  # One shape for `chatbot` and `extra_apps` so the two cannot drift. Every value
+  # reads a resource this module already creates; the chatbot adds `enabled` and
+  # `login_username` on top. `path_pattern` and `target_group_arn` are both null
+  # for a private worker.
+  app_outputs = {
+    for k, app in local.apps : k => {
+      aws_region       = app.aws_region
+      path_pattern     = try(app.routing.path_pattern, null)
+      image_uri        = "${local.app_image[k].ecr_repository_url}:${local.app_image[k].image_tag}"
+      secret_name      = aws_secretsmanager_secret.app[k].name
+      task_role_arn    = module.app_infra.ecs_apps[k].iam.task_role_arn
+      ecs_cluster_name = module.ecs_service[k].ecs_cluster_name
+      ecs_service_name = module.ecs_service[k].ecs_service_name
+      log_group_name   = module.ecs_service[k].ecs_log_group_name
+      target_group_arn = module.ecs_service[k].target_group_arn
+      # The Atlas database user grant, as a role plus the namespaces it reaches.
+      # A null collection_name is a database-wide grant, documented as `db.*`.
+      db_access = {
+        role_name = app.db_access.role_name
+        namespaces = tolist([
+          app.db_access.collection_name == null
+          ? "${app.db_access.database_name}.*"
+          : "${app.db_access.database_name}.${app.db_access.collection_name}"
+        ])
+      }
+      image_build = contains(keys(terraform_data.build), k) ? {
+        image_tag = local.app_image[k].image_tag
+        project   = aws_codebuild_project.image[k].name
+        region    = app.aws_region
+      } : null
+    }
+  }
 }

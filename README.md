@@ -500,7 +500,7 @@ The following outputs are exported:
 
 ### <a name="output_chatbot"></a> [chatbot](#output\_chatbot)
 
-Description: The chat app's image, login, secret name, and build result. Null when chatbot.enabled is false.
+Description: The chat app's image, login, secret, database access, IAM task role, ECS service, log group, target group, and build result. Null when chatbot.enabled is false.
 
 ### <a name="output_chatbot_login_password"></a> [chatbot\_login\_password](#output\_chatbot\_login\_password)
 
@@ -512,7 +512,7 @@ Description: Public connection string for the debug database user, for mongosh o
 
 ### <a name="output_extra_apps"></a> [extra\_apps](#output\_extra\_apps)
 
-Description: Per-app path, image, secret name, and build result for overrides.extra\_apps.
+Description: Per-app path, image, secret, database access, IAM task role, ECS service, log group, target group, and build result for overrides.extra\_apps.
 
 ### <a name="output_https_url"></a> [https\_url](#output\_https\_url)
 
