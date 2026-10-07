@@ -95,10 +95,14 @@ jobs:
   # === OK_EDIT: path-sync job-snapshot-tests ===
     env:
       # Module-specific: Set the minimum provider release and required cloud provider credentials.
-      MONGODB_ATLAS_PROVIDER_MIN_VERSION: '2.12.0'
+      MONGODB_ATLAS_PROVIDER_MIN_VERSION: '2.16.0'
       MONGODB_ATLAS_CLIENT_ID: ${{ secrets.MONGODB_ATLAS_CLIENT_ID }}
       MONGODB_ATLAS_CLIENT_SECRET: ${{ secrets.MONGODB_ATLAS_CLIENT_SECRET }}
       MONGODB_ATLAS_BASE_URL: ${{ secrets.MONGODB_ATLAS_BASE_URL }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    permissions:
+      contents: read
+      id-token: write # required to assume the AWS role via GitHub OIDC
   # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -122,9 +126,21 @@ jobs:
       - uses: ./.github/actions/setup-provider-dev
         if: matrix.provider_mode == 'head'
   # === OK_EDIT: path-sync job-snapshot-tests ===
-      # Module-specific: Add dev-vars and plan-snapshot-test commands
-      - run: just dev-vars-project ${{ vars.MONGODB_ATLAS_PROJECT_ID_SNAPSHOT_TEST }}
-      - run: just plan-snapshot-test --var-file "$(pwd)/tests/workspace_cluster_examples/dev.tfvars"
+      # Module-specific: The module creates its own Atlas project, so no project id
+      # is needed. Tag the plan with the CI tags; dev-vars-chatbot defaults to the
+      # dev environment and a placeholder owner so the committed snapshots do not
+      # leak the team email. The snapshot steps skip until a workspace lands, so
+      # this job passes before the minimal example and its workspace are added.
+      - name: Authenticate to AWS
+        if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        uses: aws-actions/configure-aws-credentials@451ce2a72e8d729a59ebeaacab82dbce58e7af4c # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        run: just dev-vars-chatbot
+      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        run: just plan-snapshot-test --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
   # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
   # === OK_EDIT: path-sync job-snapshot-tests ===
   # === DO_NOT_EDIT: path-sync job-slack ===

@@ -2,6 +2,11 @@
 # Module-specific configuration
 PLAN_TEST_FILES := ""
 
+# The root module reads chatbot/, scripts/, and buildspec.yaml at validate time,
+# so the compat harness copies them alongside the root *.tf into its temp dir.
+# See contributing/test-guide.md. Paths that do not exist yet are skipped.
+export TF_COMPAT_COPY_PATHS := "chatbot,scripts,buildspec.yaml"
+
 # === DO_NOT_EDIT: path-sync core ===
 set dotenv-load
 
