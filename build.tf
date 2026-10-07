@@ -139,8 +139,12 @@ resource "terraform_data" "render_assets" {
 data "archive_file" "assets" {
   count = local.chatbot_built ? 1 : 0
 
-  type        = "zip"
-  source_dir  = "${path.module}/.render/assets"
+  type = "zip"
+  # Archive the parent of the rendered `assets/` dir, not the dir itself, so the
+  # zip carries the `assets/` prefix. The buildspec copies the tree over the app
+  # root and the Dockerfile `COPY`s `assets/`, so the prefix is what lands the
+  # corpus at /app/assets/document_dirs.
+  source_dir  = "${path.module}/.render"
   output_path = "${path.module}/.build/assets.zip"
 
   # The read defers to apply on the first run, after the render creates the tree.
