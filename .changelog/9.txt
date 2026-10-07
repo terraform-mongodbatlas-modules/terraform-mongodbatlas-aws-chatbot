@@ -1,0 +1,3 @@
+```release-note:enhancement
+module: Keeps the demo starter questions in list order and bundles the make-it-your-own guide
+```
