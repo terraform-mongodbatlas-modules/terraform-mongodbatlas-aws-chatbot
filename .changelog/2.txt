@@ -1,0 +1,3 @@
+```release-note:note
+module: Adds the vendored hybrid-search chatbot app at chatbot/ with unit and integration test tiers
+```
