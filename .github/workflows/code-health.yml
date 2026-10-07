@@ -75,4 +75,98 @@ jobs:
           mise: 'true'
       - run: just test-compat
   # === OK_EDIT: path-sync job-compat-tests ===
+  # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
+  plan-snapshot-tests:
+    name: Plan Snapshots (${{ matrix.lane }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: minimum
+            terraform_version: '1.10'
+            provider_mode: minimum
+          - lane: maximum
+            terraform_version: latest
+            provider_mode: registry
+          - lane: provider-head
+            terraform_version: latest
+            provider_mode: head
+  # === OK_EDIT: path-sync job-snapshot-tests ===
+    env:
+      # Module-specific: Set the minimum provider release and required cloud provider credentials.
+      MONGODB_ATLAS_PROVIDER_MIN_VERSION: '2.16.0'
+      MONGODB_ATLAS_CLIENT_ID: ${{ secrets.MONGODB_ATLAS_CLIENT_ID }}
+      MONGODB_ATLAS_CLIENT_SECRET: ${{ secrets.MONGODB_ATLAS_CLIENT_SECRET }}
+      MONGODB_ATLAS_BASE_URL: ${{ secrets.MONGODB_ATLAS_BASE_URL }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    permissions:
+      contents: read
+      id-token: write # required to assume the AWS role via GitHub OIDC
+  # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./.github/actions/setup
+        with:
+          just: 'true'
+          uv: 'true'
+      - name: Configure minimum provider
+        if: matrix.provider_mode == 'minimum'
+        shell: bash
+        run: |
+          if [[ -z "${MONGODB_ATLAS_PROVIDER_MIN_VERSION:-}" ]]; then
+            echo "::error::MONGODB_ATLAS_PROVIDER_MIN_VERSION must be set for the minimum lane"
+            exit 1
+          fi
+          echo "MONGODB_ATLAS_PROVIDER_VERSION=${MONGODB_ATLAS_PROVIDER_MIN_VERSION}" >> "$GITHUB_ENV"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
+        with:
+          terraform_version: ${{ matrix.terraform_version }}
+          terraform_wrapper: false
+      - uses: ./.github/actions/setup-provider-dev
+        if: matrix.provider_mode == 'head'
+  # === OK_EDIT: path-sync job-snapshot-tests ===
+      # Module-specific: The module creates its own Atlas project, so no project id
+      # is needed. Tag the plan with the CI tags; dev-vars-chatbot defaults to the
+      # dev environment and a placeholder owner so the committed snapshots do not
+      # leak the team email. The snapshot steps skip until a workspace lands, so
+      # this job passes before the minimal example and its workspace are added.
+      - name: Authenticate to AWS
+        if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        uses: aws-actions/configure-aws-credentials@451ce2a72e8d729a59ebeaacab82dbce58e7af4c # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        run: just dev-vars-chatbot
+      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        run: just plan-snapshot-test --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+  # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
+  # === OK_EDIT: path-sync job-snapshot-tests ===
+  # === DO_NOT_EDIT: path-sync job-slack ===
+  slack-notification:
+    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests]
+    if: ${{ github.event_name == 'schedule' && !cancelled() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Send Slack message
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ github.event.repository.name }}: Code Health scheduled run failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *${{ github.event.repository.name }}: Code Health scheduled run failed* ${{ secrets.SLACK_ONCALL_TAG }} <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View failed run>"
+                  }
+                }
+              ]
+            }
+  # === OK_EDIT: path-sync job-slack ===
 

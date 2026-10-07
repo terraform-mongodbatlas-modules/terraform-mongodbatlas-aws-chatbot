@@ -29,3 +29,15 @@ outputs_actual.json
 dev.tfrc
 provider-src/
 # === OK_EDIT: path-sync gitignore-workspace ===
+
+# Module render and build artifacts
+.render/
+.build/
+
+# Chainlit runtime state under the vendored app. Only chatbot/assets/.chainlit/
+# config.toml is app content; the app ships chatbot/.gitignore for its own tree,
+# and these keep the repo root clean before the app is committed.
+/chatbot/.chainlit/
+/chatbot/.files/
+/chatbot/assets/.chainlit/translations/
+/chatbot/assets/.files/

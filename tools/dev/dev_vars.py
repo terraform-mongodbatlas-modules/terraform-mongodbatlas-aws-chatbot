@@ -26,5 +26,18 @@ def org(org_id: str) -> None:
     typer.echo(f"Generated {DEV_TFVARS}")
 
 
+@app.command()
+def tfrc(plugin_dir: str) -> None:
+    """Print dev.tfrc content for provider dev_overrides."""
+    content = f'''provider_installation {{
+  dev_overrides {{
+    "mongodb/mongodbatlas" = "{plugin_dir}"
+  }}
+  direct {{}}
+}}
+'''
+    print(content, end="")
+
+
 if __name__ == "__main__":
     app()
