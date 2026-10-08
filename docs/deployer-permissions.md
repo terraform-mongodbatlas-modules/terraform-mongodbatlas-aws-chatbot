@@ -47,6 +47,7 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Effect": "Allow",
       "Action": [
         "cloudfront:DeleteDistribution",
+        "cloudfront:DeleteVpcOrigin",
         "cloudfront:UpdateDistribution"
       ],
       "Resource": "*",
@@ -62,7 +63,6 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Action": [
         "cloudfront:CreateDistribution",
         "cloudfront:CreateVpcOrigin",
-        "cloudfront:DeleteVpcOrigin",
         "cloudfront:GetCachePolicy",
         "cloudfront:GetDistribution",
         "cloudfront:GetOriginRequestPolicy",
@@ -74,18 +74,32 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Resource": "*"
     },
     {
-      "Sid": "CodebuildRead1",
+      "Sid": "CodebuildCreate1",
       "Effect": "Allow",
-      "Action": [
-        "codebuild:BatchGetBuilds",
-        "codebuild:BatchGetProjects",
-        "codebuild:CreateProject",
-        "codebuild:DeleteProject",
-        "codebuild:StartBuild"
-      ],
-      "Resource": [
-        "arn:aws:codebuild:*:{aws_account_id}:project/{resource_prefix}-*"
-      ]
+      "Action": ["codebuild:CreateProject"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "CodebuildManage2",
+      "Effect": "Allow",
+      "Action": ["codebuild:DeleteProject", "codebuild:StartBuild"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "CodebuildRead3",
+      "Effect": "Allow",
+      "Action": ["codebuild:BatchGetBuilds", "codebuild:BatchGetProjects"],
+      "Resource": "*"
     },
     {
       "Sid": "Ec2Create1",
@@ -242,7 +256,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Effect": "Allow",
       "Action": [
         "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateRule",
         "elasticloadbalancing:CreateTargetGroup"
       ],
       "Resource": "*",
@@ -256,7 +272,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Sid": "ElbManage2",
       "Effect": "Allow",
       "Action": [
+        "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
         "elasticloadbalancing:ModifyTargetGroupAttributes"
@@ -272,10 +290,6 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Sid": "ElbRead3",
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:CreateRule",
-        "elasticloadbalancing:DeleteListener",
-        "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DescribeCapacityReservation",
         "elasticloadbalancing:DescribeListenerAttributes",
         "elasticloadbalancing:DescribeListeners",
@@ -413,7 +427,8 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "s3:PutBucketVersioning",
         "s3:PutEncryptionConfiguration",
         "s3:PutLifecycleConfiguration",
-        "s3:PutObject"
+        "s3:PutObject",
+        "s3:PutObjectTagging"
       ],
       "Resource": [
         "arn:aws:s3:::{resource_prefix}-*",
@@ -514,6 +529,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Effect": "Allow",
       "Action": [
         "cloudfront:DeleteDistribution",
+        "cloudfront:DeleteVpcOrigin",
         "cloudfront:UpdateDistribution"
       ],
       "Resource": "*",
@@ -529,7 +545,6 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Action": [
         "cloudfront:CreateDistribution",
         "cloudfront:CreateVpcOrigin",
-        "cloudfront:DeleteVpcOrigin",
         "cloudfront:GetCachePolicy",
         "cloudfront:GetDistribution",
         "cloudfront:GetOriginRequestPolicy",
@@ -541,18 +556,32 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Resource": "*"
     },
     {
-      "Sid": "CodebuildRead1",
+      "Sid": "CodebuildCreate1",
       "Effect": "Allow",
-      "Action": [
-        "codebuild:BatchGetBuilds",
-        "codebuild:BatchGetProjects",
-        "codebuild:CreateProject",
-        "codebuild:DeleteProject",
-        "codebuild:StartBuild"
-      ],
-      "Resource": [
-        "arn:aws:codebuild:*:{aws_account_id}:project/{resource_prefix}-*"
-      ]
+      "Action": ["codebuild:CreateProject"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "CodebuildManage2",
+      "Effect": "Allow",
+      "Action": ["codebuild:DeleteProject", "codebuild:StartBuild"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "CodebuildRead3",
+      "Effect": "Allow",
+      "Action": ["codebuild:BatchGetBuilds", "codebuild:BatchGetProjects"],
+      "Resource": "*"
     },
     {
       "Sid": "Ec2Create1",
@@ -719,7 +748,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Effect": "Allow",
       "Action": [
         "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateRule",
         "elasticloadbalancing:CreateTargetGroup"
       ],
       "Resource": "*",
@@ -733,7 +764,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Sid": "ElbManage2",
       "Effect": "Allow",
       "Action": [
+        "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
         "elasticloadbalancing:ModifyTargetGroupAttributes"
@@ -749,10 +782,6 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Sid": "ElbRead3",
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:CreateRule",
-        "elasticloadbalancing:DeleteListener",
-        "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DescribeCapacityReservation",
         "elasticloadbalancing:DescribeListenerAttributes",
         "elasticloadbalancing:DescribeListeners",
@@ -930,7 +959,8 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "s3:PutBucketVersioning",
         "s3:PutEncryptionConfiguration",
         "s3:PutLifecycleConfiguration",
-        "s3:PutObject"
+        "s3:PutObject",
+        "s3:PutObjectTagging"
       ],
       "Resource": [
         "arn:aws:s3:::{resource_prefix}-*",
@@ -1011,7 +1041,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
 
 A bundle this size exceeds the 6,144-character managed-policy limit. Two ways to attach it:
 
-- **Inline policy.** Minify the JSON and attach it as one inline policy on the deployer role. The full bundle is about 9.5 KB without the formatting whitespace and the minimal bundle about 8.7 KB, both under the 10,240-character role inline limit.
+- **Inline policy.** Minify the JSON and attach it as one inline policy on the deployer role. The full bundle is about 9.7 KB without the formatting whitespace and the minimal bundle about 8.9 KB, both under the 10,240-character role inline limit.
 - **Managed policies.** Split the bundle by service, one `aws_iam_policy` per service, and attach each to the role. A per-service file stays well under the limit, and a failure names the service.
 
 The IAM statements need two extra constraints when Terraform manages the role:
@@ -1062,20 +1092,16 @@ Both bundles carry these conditions. Create the boundary policy first, then set 
 
 ## Exceptions
 
-Some actions cannot use a tag condition. Each stays on `"*"` with no condition, because AWS authorizes it against a resource that carries no tag of its own.
+Some actions cannot use a tag condition. Each stays on `"*"` with no condition, because AWS authorizes it against a resource that carries no tag of its own, or does not evaluate a tag on the call.
 
-- **`elasticloadbalancing:CreateListener`, `CreateRule`, `DeleteRule`, `DeleteListener`**: the module tags the load balancer, not the listener or its rules.
 - **`wafv2:CreateWebACL`**: the create runs before the tag exists in the authorization context.
-- **`cloudfront:GetVpcOrigin`, `DeleteVpcOrigin`, `GetDistribution`, `ListTagsForResource`**: the VPC origin is not tagged, and CloudFront does not evaluate `aws:ResourceTag` on the distribution read during a delete.
+- **`cloudfront:GetVpcOrigin`, `GetDistribution`, `ListTagsForResource`**: CloudFront does not evaluate `aws:ResourceTag` on these reads.
+- **`codebuild:BatchGetBuilds`, `BatchGetProjects`**: CodeBuild does not evaluate `aws:ResourceTag` on these reads.
 - **`kms:CreateAlias`, `DeleteAlias`**: KMS aliases are not tagged.
-- **`ec2:DisassociateAddress`, `DisassociateRouteTable`**: the EIP and route-table associations carry no tag. The EIP and route table do.
+- **`ec2:DisassociateAddress`, `DisassociateRouteTable`**: the EIP and route-table associations carry no tag of their own.
 - **`logs:PutRetentionPolicy`, `DeleteLogGroup`, `ListTagsForResource`**: CloudWatch Logs does not evaluate `aws:ResourceTag` for these.
-- **`codebuild:CreateProject`**: the module does not tag the CodeBuild project.
 
-Two services scope by name prefix instead of tag, because a tag condition never matches:
-
-- **S3**: `s3:CreateBucket` sends no tags in the request, so its statement uses `arn:aws:s3:::{resource_prefix}-*` and `arn:aws:s3:::{resource_prefix}-*/*`.
-- **CodeBuild**: the module does not tag the project, so its statement uses `arn:aws:codebuild:*:{aws_account_id}:project/{resource_prefix}-*`.
+S3 scopes by name prefix instead of tag, because `s3:CreateBucket` carries no tags in the request. Its statement uses `arn:aws:s3:::{resource_prefix}-*` and `arn:aws:s3:::{resource_prefix}-*/*`.
 
 One classification is easy to get wrong: `secretsmanager:DeleteSecret` is a delete, not a create, so it sits with the manage actions under `aws:ResourceTag`, not under `aws:RequestTag`.
 

@@ -1,3 +1,7 @@
 ```release-note:note
 module: Documents the captured least-privilege deployer policy and the permissions boundary
 ```
+
+```release-note:enhancement
+module: Tags every resource the module creates, including the build resources and the edge listener and rule
+```

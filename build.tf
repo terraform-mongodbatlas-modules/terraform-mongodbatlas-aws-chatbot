@@ -159,6 +159,7 @@ resource "aws_s3_bucket" "source" {
   region        = each.key
   bucket_prefix = "${local.resource_prefix}-${each.key}-cb-"
   force_destroy = true
+  tags          = local.tags
 }
 
 resource "aws_s3_object" "app" {
@@ -169,6 +170,7 @@ resource "aws_s3_object" "app" {
   key         = "${each.key}/app.zip"
   source      = data.archive_file.app[each.key].output_path
   source_hash = data.archive_file.app[each.key].output_base64sha256
+  tags        = local.tags
 }
 
 resource "aws_s3_object" "assets" {
@@ -179,6 +181,7 @@ resource "aws_s3_object" "assets" {
   key         = "assets.zip"
   source      = data.archive_file.assets[0].output_path
   source_hash = data.archive_file.assets[0].output_base64sha256
+  tags        = local.tags
 }
 
 # --- Build IAM ----------------------------------------------------------------
@@ -201,6 +204,7 @@ resource "aws_iam_role" "codebuild" {
   name                 = "${local.resource_prefix}-codebuild"
   assume_role_policy   = data.aws_iam_policy_document.codebuild_assume.json
   permissions_boundary = var.overrides.permissions_boundary
+  tags                 = local.tags
 }
 
 data "aws_iam_policy_document" "codebuild" {
@@ -283,6 +287,7 @@ resource "aws_codebuild_project" "image" {
   build_timeout    = 20
   queued_timeout   = 10
   auto_retry_limit = 2
+  tags             = local.tags
 
   depends_on = [time_sleep.iam_propagation]
 

@@ -190,6 +190,23 @@ run "built_in_tags_reach_the_composed_modules" {
   }
 }
 
+run "every_taggable_build_resource_carries_the_built_in_tags" {
+  command = plan
+
+  # The source bucket, its objects, the CodeBuild role, and the CodeBuild project
+  # are tagged, so the deployer policy can scope them by tag.
+  assert {
+    condition = alltrue([
+      aws_s3_bucket.source["us-east-1"].tags["Example"] == "atlas-aws-chatbot",
+      aws_s3_object.app["chatbot"].tags["Example"] == "atlas-aws-chatbot",
+      aws_s3_object.assets[0].tags["Example"] == "atlas-aws-chatbot",
+      aws_iam_role.codebuild[0].tags["Example"] == "atlas-aws-chatbot",
+      aws_codebuild_project.image["chatbot"].tags["Example"] == "atlas-aws-chatbot",
+    ])
+    error_message = "The build resources should carry the built-in Example tag"
+  }
+}
+
 run "bare_document_name_resolves_to_the_bundled_corpus" {
   command = plan
 
