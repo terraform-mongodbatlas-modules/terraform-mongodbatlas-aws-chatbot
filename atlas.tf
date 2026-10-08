@@ -90,6 +90,9 @@ module "atlas_aws" {
     }
   ]
 
+  cloud_provider_access = {
+    iam_role_permissions_boundary = var.overrides.permissions_boundary
+  }
   encryption      = local.atlas_aws_encryption
   log_integration = local.atlas_aws_log_integration
   backup_export   = local.atlas_aws_backup_export

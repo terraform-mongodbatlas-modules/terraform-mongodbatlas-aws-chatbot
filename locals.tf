@@ -254,6 +254,9 @@ locals {
 
   atlas_aws_encryption = {
     enabled = var.features.atlas_byok
+    iam_role = {
+      permissions_boundary = var.overrides.permissions_boundary
+    }
     private_endpoint_regions = (
       var.features.atlas_byok ? local.aws_regions : []
     )
@@ -277,6 +280,9 @@ locals {
 
   atlas_aws_log_integration = {
     enabled = var.features.atlas_s3_log_export
+    iam_role = {
+      permissions_boundary = var.overrides.permissions_boundary
+    }
     create_s3_bucket = (
       var.features.atlas_s3_log_export ? {
         enabled         = true
@@ -295,6 +301,9 @@ locals {
 
   atlas_aws_backup_export = {
     enabled = var.features.atlas_s3_backup_export
+    iam_role = {
+      permissions_boundary = var.overrides.permissions_boundary
+    }
     create_s3_bucket = (
       var.features.atlas_s3_backup_export ? {
         enabled         = true

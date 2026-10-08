@@ -198,8 +198,9 @@ data "aws_iam_policy_document" "codebuild_assume" {
 resource "aws_iam_role" "codebuild" {
   count = local.build_enabled ? 1 : 0
 
-  name               = "${local.resource_prefix}-codebuild"
-  assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
+  name                 = "${local.resource_prefix}-codebuild"
+  assume_role_policy   = data.aws_iam_policy_document.codebuild_assume.json
+  permissions_boundary = var.overrides.permissions_boundary
 }
 
 data "aws_iam_policy_document" "codebuild" {

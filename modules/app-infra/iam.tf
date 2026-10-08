@@ -40,7 +40,8 @@ resource "aws_iam_role" "ecs_task" {
     }]
   })
 
-  tags = var.tags
+  permissions_boundary = var.permissions_boundary
+  tags                 = var.tags
 }
 
 resource "aws_iam_role" "ecs_task_execution" {
@@ -57,7 +58,8 @@ resource "aws_iam_role" "ecs_task_execution" {
     }]
   })
 
-  tags = var.tags
+  permissions_boundary = var.permissions_boundary
+  tags                 = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
