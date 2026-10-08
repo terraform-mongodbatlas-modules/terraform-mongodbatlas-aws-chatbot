@@ -1,0 +1,3 @@
+```release-note:enhancement
+module: Adds `overrides.permissions_boundary`, applied to every IAM role the module creates
+```

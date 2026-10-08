@@ -10,6 +10,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "permissions_boundary" {
+  description = "The ARN of an IAM permissions boundary applied to the ECS task and execution roles; `null` leaves them unbounded."
+  type        = string
+  default     = null
+}
+
 variable "regions" {
   description = "Cluster regions. Use AWS region names (e.g. us-east-1). Atlas format (US_EAST_1) is also accepted. One VPC is created per region on the managed path."
   type = list(object({
