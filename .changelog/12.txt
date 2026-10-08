@@ -5,3 +5,7 @@ module: Documents the captured least-privilege deployer policy and the permissio
 ```release-note:enhancement
 module: Tags every resource the module creates, including the build resources and the edge listener and rule
 ```
+
+```release-note:enhancement
+module: Adds `overrides.permissions_boundary`, applied to every IAM role the module creates
+```
