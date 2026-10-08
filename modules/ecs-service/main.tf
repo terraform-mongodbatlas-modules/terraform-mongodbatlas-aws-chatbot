@@ -68,6 +68,8 @@ resource "aws_lb_listener_rule" "this" {
       }
     }
   }
+
+  tags = var.tags
 }
 
 resource "aws_ecs_task_definition" "this" {
