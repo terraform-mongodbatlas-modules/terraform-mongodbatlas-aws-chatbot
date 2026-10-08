@@ -75,7 +75,7 @@ The module composes the published Landing Zone modules with the app modules in t
 
 ## Security and IAM
 
-The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer permissions, the Atlas credential requirement, and the roles the module creates.
+The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer-versus-runtime distinction, the Atlas credential requirement, and the roles the module creates, and [docs/deployer-permissions.md](docs/deployer-permissions.md) for the captured least-privilege deployer policy.
 
 ## FAQ
 

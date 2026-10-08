@@ -1,0 +1,3 @@
+```release-note:note
+module: Documents the captured least-privilege deployer policy and the permissions boundary
+```
