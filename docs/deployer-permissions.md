@@ -7,7 +7,7 @@ Two bundles follow. The minimal example bundle covers the [minimal example](../e
 - **`{aws_account_id}`**: your AWS account ID.
 - **`{resource_prefix}`**: the prefix for every resource name the module creates. It defaults to `app_name`.
 
-Replace both before you attach a policy. The `Example` tag value is fixed by the module, so the tag conditions need no edit.
+Replace both before you attach a policy. The conditions key on the built-in `Example = atlas-aws-chatbot` tag, so keep two module defaults in place: leave `overrides.skip_tags` unset (it removes the whole tag map), and do not set `Example` in `extra_tags` (it merges over the built-in value). Either change breaks every tag-conditioned statement below.
 
 ## Why tag conditions
 
@@ -1042,7 +1042,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
 A bundle this size exceeds the 6,144-character managed-policy limit. Two ways to attach it:
 
 - **Inline policy.** Minify the JSON and attach it as one inline policy on the deployer role. The full bundle is about 9.7 KB without the formatting whitespace and the minimal bundle about 8.9 KB, both under the 10,240-character role inline limit.
-- **Managed policies.** Split the bundle by service, one `aws_iam_policy` per service, and attach each to the role. A per-service file stays well under the limit, and a failure names the service.
+- **Managed policies.** Split the bundle by service, one `aws_iam_policy` per service, and attach each to the role. A per-service file stays well under the limit, and a failure names the service. That split yields 13 policies for the minimal bundle and 14 for the full bundle, over the default quota of 10 managed policies attached to a role: group services into 10 or fewer policies, or raise the quota.
 
 The IAM statements need two extra constraints when Terraform manages the role:
 
@@ -1066,7 +1066,9 @@ module "chatbot" {
 }
 ```
 
-The module then attaches the boundary to every role it creates, so a role it creates can do its job but cannot grant itself more. A permissions boundary must allow an action for the entity to perform it, because the effective permissions are the intersection of the identity policy and the boundary. A deny-only boundary would allow nothing, so the boundary allows every action and denies the escalation set:
+The module then attaches the boundary to every role it creates, so a role it creates can do its job but cannot grant itself more.
+
+The boundary closes the IAM escalation only. The deployer can still put a broad inline policy on a prefixed role and pass it to CodeBuild or ECS, because the boundary allows every non-IAM action. Treat the deployer as a trusted identity, and keep the role-name prefix tight so a created role has few places to run. A permissions boundary must allow an action for the entity to perform it, because the effective permissions are the intersection of the identity policy and the boundary. A deny-only boundary would allow nothing, so the boundary allows every action and denies the escalation set:
 
 ```json
 {
@@ -1103,6 +1105,8 @@ Some actions cannot use a tag condition. Each stays on `"*"` with no condition, 
 
 S3 scopes by name prefix instead of tag, because `s3:CreateBucket` carries no tags in the request. Its statement uses `arn:aws:s3:::{resource_prefix}-*` and `arn:aws:s3:::{resource_prefix}-*/*`.
 
+Some create actions appear in the unconditioned statement as well. The same call can authorize against a second resource type that carries no tag condition: the parent VPC for `ec2:CreateSecurityGroup` and `ec2:CreateSubnet`, for example. The condition alone denies the call against that type, so the statement repeats the create actions with no condition. The trade-off is that a deployer holding this policy can create untagged resources of those types.
+
 One classification is easy to get wrong: `secretsmanager:DeleteSecret` is a delete, not a create, so it sits with the manage actions under `aws:ResourceTag`, not under `aws:RequestTag`.
 
 ## Capture your own
@@ -1110,10 +1114,12 @@ One classification is easy to get wrong: `secretsmanager:DeleteSecret` is a dele
 The bundles come from a live capture of the module's own API calls. To capture the calls for your version of the module:
 
 1. Record the calls with an [iamlive](https://github.com/iann0036/iamlive) proxy in front of Terraform.
-2. Run all three lifecycle phases through the proxy: `terraform destroy`, then `terraform apply`, then `terraform plan`.
+2. Run all four lifecycle phases through the proxy: `terraform destroy`, then `terraform apply`, then `terraform plan`, then a mutation pass that changes an input (the buildspec, a routing rule), applies again, and restores it.
 3. Turn the captured actions into per-service policy JSON, then combine or attach them as above.
 
-The three phases each contribute actions the others miss. A destroy records the `Delete*`, `Detach*`, and `Revoke*` calls. An apply records the `Create*`, `Put*`, and `Attach*` calls. A plan records the `Describe*`, `List*`, and `Get*` reads. A create-only capture misses every delete.
+Each phase contributes actions the others miss. A destroy records the `Delete*`, `Detach*`, and `Revoke*` calls. An apply records the `Create*`, `Put*`, and `Attach*` calls. A plan records the `Describe*`, `List*`, and `Get*` reads. The mutation pass records the update-only calls, such as `codebuild:UpdateProject` for a generated-buildspec change and `elasticloadbalancing:ModifyRule` for a routing change. A create-only capture misses every delete, and the three-phase capture misses every update.
+
+The bundles in this guide came from a three-phase capture, so they omit the update-only actions. Add the actions your own mutation pass surfaces.
 
 Lesson from the first capture: the destroy path surfaced five actions the apply never called (`elasticloadbalancing:DeleteRule`, `DeleteListener`, `cloudfront:GetDistribution`, `ec2:DisassociateAddress`, `secretsmanager:DeleteSecret`). Run destroy before apply, and re-run until both are clean.
 

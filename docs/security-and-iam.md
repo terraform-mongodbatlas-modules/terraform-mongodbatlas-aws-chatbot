@@ -6,7 +6,7 @@ This guide covers the permissions you need to deploy the module and the roles th
 
 To run the example, the AWS identity that runs `terraform apply` needs permission to create and delete the resources the module manages: VPC and networking resources, ECR, CodeBuild, ECS, the Application Load Balancer, CloudFront, WAF, Secrets Manager, S3, IAM roles and policies, and KMS when `features.atlas_byok` is set.
 
-The captured least-privilege policy scopes each action by tag, so a create, a delete, or a read touches only the resources the module owns. See [Deployer permissions](deployer-permissions.md) for the minimal-example and full-feature policies, the untaggable exceptions, and how to close the IAM escalation path with `overrides.permissions_boundary`.
+The captured least-privilege policy scopes each create and delete by tag, so it touches only the resources the module owns. See [Deployer permissions](deployer-permissions.md) for the minimal-example and full-feature policies, the untaggable exceptions, and how to close the IAM escalation path with `overrides.permissions_boundary`.
 
 ## Atlas credential
 
