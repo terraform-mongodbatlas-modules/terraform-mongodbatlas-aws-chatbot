@@ -7,7 +7,7 @@ This repository holds an example pattern module that deploys a demo hybrid searc
 
 The module is built on the published MongoDB Atlas Landing Zone modules with a production-grade architecture: Atlas over PrivateLink, a private ECS Fargate service with no public IP, and CloudFront with WAF at the edge. To reuse the Landing Zone modules in your own stack, start from [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples).
 
-![Chatbot UI](docs/images/chat-ui-placeholder.svg)
+![Chatbot UI](docs/images/ui-overview.gif)
 
 <!-- BEGIN_TOC -->
 <!-- @generated
