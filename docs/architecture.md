@@ -6,7 +6,9 @@ This guide describes what the module deploys and how a request flows through it.
 
 One `terraform apply` creates the Atlas project, the cluster, the AWS app infrastructure, the app image, and the running service. The module composes the published Landing Zone modules ([project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest)) with the app modules that live in this repository.
 
-![Deployment stack](images/stack.svg)
+![The aws-chatbot deployment stack](images/stack.svg)
+
+The diagram is from a deployment with every feature except internet egress. The app reaches AWS APIs over interface VPC endpoints, not NAT, and Atlas over PrivateLink.
 
 The apply creates the following resources, grouped by ownership.
 
@@ -16,7 +18,7 @@ The apply creates the following resources, grouped by ownership.
   - A PrivateLink endpoint per cluster region, so the app reaches the cluster over private networking.
   - One IAM database user per app. The username is the ECS task role ARN, so the container authenticates with `MONGODB-AWS` and holds no database password.
   - Optional customer-managed KMS encryption at rest, log export, and backup export to module-managed S3 buckets.
-  - Optional debug database user, used with a local `mongosh` or a local app.
+  - Optional debug database user, created only when `features.debug_access_for_cluster` is set. It is used with a local `mongosh` or a local app.
 - **AWS app infrastructure** (the `modules/app-infra` submodule)
   - A VPC with private subnets, an internet gateway for the CloudFront VPC origin, and interface VPC endpoints. A NAT gateway is added only when the caller enables internet egress or skips the interface endpoints.
   - Interface VPC endpoints for ECR, CloudWatch Logs, Secrets Manager, and STS, plus the S3 gateway endpoint.
@@ -33,7 +35,9 @@ The apply creates the following resources, grouped by ownership.
   - With the default Amazon Bedrock provider, a `bedrock-runtime` interface endpoint and a task-role policy scoped to the Converse actions.
   - With a keyed provider, a secret that carries the API key.
 
-![Module abstraction iceberg](images/iceberg.svg)
+![The aws-chatbot abstraction iceberg](images/iceberg.svg)
+
+The iceberg counts the same deployment: one module call declares 90 managed resources across four module depths.
 
 ## How a request flows
 
