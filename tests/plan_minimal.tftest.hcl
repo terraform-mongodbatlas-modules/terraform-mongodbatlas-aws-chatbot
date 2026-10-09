@@ -190,6 +190,23 @@ run "built_in_tags_reach_the_composed_modules" {
   }
 }
 
+run "every_taggable_build_resource_carries_the_built_in_tags" {
+  command = plan
+
+  # The source bucket, its objects, the CodeBuild role, and the CodeBuild project
+  # are tagged, so the deployer policy can scope them by tag.
+  assert {
+    condition = alltrue([
+      aws_s3_bucket.source["us-east-1"].tags["Example"] == "atlas-aws-chatbot",
+      aws_s3_object.app["chatbot"].tags["Example"] == "atlas-aws-chatbot",
+      aws_s3_object.assets[0].tags["Example"] == "atlas-aws-chatbot",
+      aws_iam_role.codebuild[0].tags["Example"] == "atlas-aws-chatbot",
+      aws_codebuild_project.image["chatbot"].tags["Example"] == "atlas-aws-chatbot",
+    ])
+    error_message = "The build resources should carry the built-in Example tag"
+  }
+}
+
 run "bare_document_name_resolves_to_the_bundled_corpus" {
   command = plan
 
@@ -386,5 +403,20 @@ run "outputs_expose_the_per_app_runtime_handles" {
       contains(keys(output.chatbot), "target_group_arn"),
     ])
     error_message = "The chatbot output should carry the ECS, log, IAM, target-group, and database-access handles"
+  }
+}
+
+run "codebuild_writes_into_a_managed_log_group" {
+  command = plan
+
+  # The group matches CodeBuild's auto-created default name so existing history
+  # stays in one group, and the project points at the module-managed group so
+  # destroy removes it.
+  assert {
+    condition = alltrue([
+      aws_cloudwatch_log_group.codebuild["chatbot"].name == "/aws/codebuild/mongodb-chatbot-demo-image",
+      aws_codebuild_project.image["chatbot"].logs_config[0].cloudwatch_logs[0].group_name == aws_cloudwatch_log_group.codebuild["chatbot"].name,
+    ])
+    error_message = "The CodeBuild project should write into the module-managed log group"
   }
 }

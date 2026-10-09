@@ -227,6 +227,7 @@ variable "overrides" {
     The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
     - `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
+    - `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
     - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
     - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
@@ -237,6 +238,8 @@ variable "overrides" {
   EOT
   type = object({
     resource_prefix = optional(string)
+
+    permissions_boundary = optional(string)
 
     byo_vpc = optional(map(object({
       vpc_id                  = string

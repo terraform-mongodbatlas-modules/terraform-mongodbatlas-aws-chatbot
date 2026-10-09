@@ -75,7 +75,7 @@ The module composes the published Landing Zone modules with the app modules in t
 
 ## Security and IAM
 
-The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer permissions, the Atlas credential requirement, and the roles the module creates.
+The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer-versus-runtime distinction, the Atlas credential requirement, and the roles the module creates, and [docs/deployer-permissions.md](docs/deployer-permissions.md) for the captured least-privilege deployer policy.
 
 ## FAQ
 
@@ -195,6 +195,7 @@ The following providers are used by this module:
 
 The following resources are used by this module:
 
+- [aws_cloudwatch_log_group.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) (resource)
 - [aws_codebuild_project.image](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/codebuild_project) (resource)
 - [aws_iam_role.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) (resource)
 - [aws_iam_role_policy.codebuild](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) (resource)
@@ -426,6 +427,7 @@ Default: `null`
 The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by default.
 
 - `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
+- `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
 - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
 - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
@@ -439,6 +441,8 @@ Type:
 ```hcl
 object({
   resource_prefix = optional(string)
+
+  permissions_boundary = optional(string)
 
   byo_vpc = optional(map(object({
     vpc_id                  = string

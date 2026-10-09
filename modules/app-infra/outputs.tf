@@ -112,8 +112,10 @@ output "ecs_apps" {
         ecs_security_group_id = aws_security_group.app[v.aws_region].id
       }
       iam = {
-        task_role_arn           = aws_iam_role.ecs_task[k].arn
-        task_execution_role_arn = aws_iam_role.ecs_task_execution[k].arn
+        task_role_arn                            = aws_iam_role.ecs_task[k].arn
+        task_execution_role_arn                  = aws_iam_role.ecs_task_execution[k].arn
+        task_role_permissions_boundary           = aws_iam_role.ecs_task[k].permissions_boundary
+        task_execution_role_permissions_boundary = aws_iam_role.ecs_task_execution[k].permissions_boundary
       }
       routing = v.routing == null ? null : {
         edge              = v.routing.edge

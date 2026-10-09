@@ -6,25 +6,7 @@ This guide covers the permissions you need to deploy the module and the roles th
 
 To run the example, the AWS identity that runs `terraform apply` needs permission to create and delete the resources the module manages: VPC and networking resources, ECR, CodeBuild, ECS, the Application Load Balancer, CloudFront, WAF, Secrets Manager, S3, IAM roles and policies, and KMS when `features.atlas_byok` is set.
 
-The following combined policy is a placeholder that shows the shape, not a policy you can attach. As written it grants unrestricted administrator access, so do not paste or attach it. Replace the statement with the least-privilege actions you capture for your account before you create an IAM user for the demo. For a Terraform-managed deployer role, split the policy per service and attach it to the role.
-
-<!-- TODO: replace the placeholder statement with the least-privilege policy you capture
-     for your account. Record the actions from a create, update, and delete cycle, then
-     scope each action to the resources the module manages. -->
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Placeholder",
-      "Effect": "Allow",
-      "Action": "*",
-      "Resource": "*"
-    }
-  ]
-}
-```
+The captured least-privilege policy scopes each create and delete by tag, so it touches only the resources the module owns. See [Deployer permissions](deployer-permissions.md) for the minimal-example and full-feature policies, the untaggable exceptions, and how to close the IAM escalation path with `overrides.permissions_boundary`.
 
 ## Atlas credential
 

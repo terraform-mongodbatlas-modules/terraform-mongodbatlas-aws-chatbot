@@ -159,6 +159,7 @@ resource "aws_s3_bucket" "source" {
   region        = each.key
   bucket_prefix = "${local.resource_prefix}-${each.key}-cb-"
   force_destroy = true
+  tags          = local.tags
 }
 
 resource "aws_s3_object" "app" {
@@ -169,6 +170,7 @@ resource "aws_s3_object" "app" {
   key         = "${each.key}/app.zip"
   source      = data.archive_file.app[each.key].output_path
   source_hash = data.archive_file.app[each.key].output_base64sha256
+  tags        = local.tags
 }
 
 resource "aws_s3_object" "assets" {
@@ -179,6 +181,7 @@ resource "aws_s3_object" "assets" {
   key         = "assets.zip"
   source      = data.archive_file.assets[0].output_path
   source_hash = data.archive_file.assets[0].output_base64sha256
+  tags        = local.tags
 }
 
 # --- Build IAM ----------------------------------------------------------------
@@ -198,8 +201,10 @@ data "aws_iam_policy_document" "codebuild_assume" {
 resource "aws_iam_role" "codebuild" {
   count = local.build_enabled ? 1 : 0
 
-  name               = "${local.resource_prefix}-codebuild"
-  assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
+  name                 = "${local.resource_prefix}-codebuild"
+  assume_role_policy   = data.aws_iam_policy_document.codebuild_assume.json
+  permissions_boundary = var.overrides.permissions_boundary
+  tags                 = local.tags
 }
 
 data "aws_iam_policy_document" "codebuild" {
@@ -271,6 +276,21 @@ resource "time_sleep" "iam_propagation" {
   create_duration = "10s"
 }
 
+# --- CodeBuild log group ------------------------------------------------------
+# CodeBuild auto-creates /aws/codebuild/<project> on the first build, outside
+# Terraform state, so it outlives `destroy`. Create the group here with the same
+# default name and point the project at it, so log history stays in one group and
+# destroy removes it.
+
+resource "aws_cloudwatch_log_group" "codebuild" {
+  for_each = local.build_apps
+
+  region            = each.value.aws_region
+  name              = "/aws/codebuild/${each.value.name}-image"
+  retention_in_days = 7
+  tags              = local.tags
+}
+
 # --- CodeBuild project --------------------------------------------------------
 
 resource "aws_codebuild_project" "image" {
@@ -282,6 +302,7 @@ resource "aws_codebuild_project" "image" {
   build_timeout    = 20
   queued_timeout   = 10
   auto_retry_limit = 2
+  tags             = local.tags
 
   depends_on = [time_sleep.iam_propagation]
 
@@ -299,6 +320,14 @@ resource "aws_codebuild_project" "image" {
     compute_type    = "BUILD_GENERAL1_SMALL"
     image           = "aws/codebuild/amazonlinux2-aarch64-standard:3.0"
     privileged_mode = true
+  }
+
+  # Write into the module-managed group instead of the auto-created default, so
+  # destroy removes the group. `each.value.name` avoids a cycle with the project.
+  logs_config {
+    cloudwatch_logs {
+      group_name = aws_cloudwatch_log_group.codebuild[each.key].name
+    }
   }
 
   # Primary source: the app tree. CodeBuild extracts it to CODEBUILD_SRC_DIR.

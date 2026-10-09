@@ -64,6 +64,8 @@ resource "aws_cloudfront_vpc_origin" "this" {
       quantity = 1
     }
   }
+
+  tags = merge(var.tags, { Name = "${var.name}-vpc-origin" })
 }
 
 resource "aws_lb_listener" "http" {
@@ -80,6 +82,8 @@ resource "aws_lb_listener" "http" {
       status_code  = "404"
     }
   }
+
+  tags = merge(var.tags, { Name = "${var.name}-listener" })
 }
 
 resource "aws_wafv2_web_acl" "this" {
