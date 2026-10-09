@@ -9,3 +9,7 @@ module: Tags every resource the module creates, including the build resources an
 ```release-note:enhancement
 module: Adds `overrides.permissions_boundary`, applied to every IAM role the module creates
 ```
+
+```release-note:enhancement
+module: Creates the CodeBuild CloudWatch log group so `terraform destroy` removes it
+```
