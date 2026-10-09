@@ -8,7 +8,7 @@ One `terraform apply` creates the Atlas project, the cluster, the AWS app infras
 
 ![The aws-chatbot deployment stack](images/stack.svg)
 
-The diagram is from a deployment with every feature enabled. The app reaches AWS APIs over interface VPC endpoints, not NAT, and Atlas over PrivateLink.
+The diagram is from a deployment with every feature except internet egress. The app reaches AWS APIs over interface VPC endpoints, not NAT, and Atlas over PrivateLink.
 
 The apply creates the following resources, grouped by ownership.
 
