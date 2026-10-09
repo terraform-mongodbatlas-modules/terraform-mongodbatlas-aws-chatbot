@@ -6,7 +6,9 @@ This guide describes what the module deploys and how a request flows through it.
 
 One `terraform apply` creates the Atlas project, the cluster, the AWS app infrastructure, the app image, and the running service. The module composes the published Landing Zone modules ([project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest)) with the app modules that live in this repository.
 
-![Deployment stack](images/stack.svg)
+![The aws-chatbot deployment stack](images/stack.svg)
+
+The diagram is from a deployment that enables every feature except `internet_egress`, so the private subnets reach AWS APIs over interface VPC endpoints and Atlas over PrivateLink, with no NAT gateway.
 
 The apply creates the following resources, grouped by ownership.
 
@@ -33,7 +35,9 @@ The apply creates the following resources, grouped by ownership.
   - With the default Amazon Bedrock provider, a `bedrock-runtime` interface endpoint and a task-role policy scoped to the Converse actions.
   - With a keyed provider, a secret that carries the API key.
 
-![Module abstraction iceberg](images/iceberg.svg)
+![The aws-chatbot abstraction iceberg](images/iceberg.svg)
+
+The iceberg counts the same deployment: one module call declares 90 managed resources across four module depths.
 
 ## How a request flows
 
