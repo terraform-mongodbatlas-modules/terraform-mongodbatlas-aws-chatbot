@@ -276,6 +276,21 @@ resource "time_sleep" "iam_propagation" {
   create_duration = "10s"
 }
 
+# --- CodeBuild log group ------------------------------------------------------
+# CodeBuild auto-creates /aws/codebuild/<project> on the first build, outside
+# Terraform state, so it outlives `destroy`. Create the group here with the same
+# default name and point the project at it, so log history stays in one group and
+# destroy removes it.
+
+resource "aws_cloudwatch_log_group" "codebuild" {
+  for_each = local.build_apps
+
+  region            = each.value.aws_region
+  name              = "/aws/codebuild/${each.value.name}-image"
+  retention_in_days = 7
+  tags              = local.tags
+}
+
 # --- CodeBuild project --------------------------------------------------------
 
 resource "aws_codebuild_project" "image" {
@@ -305,6 +320,14 @@ resource "aws_codebuild_project" "image" {
     compute_type    = "BUILD_GENERAL1_SMALL"
     image           = "aws/codebuild/amazonlinux2-aarch64-standard:3.0"
     privileged_mode = true
+  }
+
+  # Write into the module-managed group instead of the auto-created default, so
+  # destroy removes the group. `each.value.name` avoids a cycle with the project.
+  logs_config {
+    cloudwatch_logs {
+      group_name = aws_cloudwatch_log_group.codebuild[each.key].name
+    }
   }
 
   # Primary source: the app tree. CodeBuild extracts it to CODEBUILD_SRC_DIR.

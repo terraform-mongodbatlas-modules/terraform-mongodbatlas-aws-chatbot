@@ -405,3 +405,18 @@ run "outputs_expose_the_per_app_runtime_handles" {
     error_message = "The chatbot output should carry the ECS, log, IAM, target-group, and database-access handles"
   }
 }
+
+run "codebuild_writes_into_a_managed_log_group" {
+  command = plan
+
+  # The group matches CodeBuild's auto-created default name so existing history
+  # stays in one group, and the project points at the module-managed group so
+  # destroy removes it.
+  assert {
+    condition = alltrue([
+      aws_cloudwatch_log_group.codebuild["chatbot"].name == "/aws/codebuild/mongodb-chatbot-demo-image",
+      aws_codebuild_project.image["chatbot"].logs_config[0].cloudwatch_logs[0].group_name == aws_cloudwatch_log_group.codebuild["chatbot"].name,
+    ])
+    error_message = "The CodeBuild project should write into the module-managed log group"
+  }
+}
