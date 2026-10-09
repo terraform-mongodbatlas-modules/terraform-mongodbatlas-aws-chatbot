@@ -4,10 +4,9 @@ This repository holds an example pattern module that deploys the hybrid search c
 
 > This module is an example of a production-shaped deployment. It carries no stability guarantee and the repository may be archived if adoption does not materialize.
 
+A recorded run of the deployed chat UI:
 
 https://github.com/user-attachments/assets/1edd9a88-3693-45ed-bbc9-e8cb683d1677
-
-
 
 <!-- BEGIN_TOC -->
 <!-- @generated
