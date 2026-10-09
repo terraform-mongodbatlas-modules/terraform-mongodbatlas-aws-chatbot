@@ -8,7 +8,7 @@ One `terraform apply` creates the Atlas project, the cluster, the AWS app infras
 
 ![The aws-chatbot deployment stack](images/stack.svg)
 
-The diagram is from a deployment that enables every feature except `internet_egress`, so the private subnets reach AWS APIs over interface VPC endpoints and Atlas over PrivateLink, with no NAT gateway.
+The diagram is from a deployment with every feature enabled. The app reaches AWS APIs over interface VPC endpoints, not NAT, and Atlas over PrivateLink.
 
 The apply creates the following resources, grouped by ownership.
 
@@ -18,7 +18,7 @@ The apply creates the following resources, grouped by ownership.
   - A PrivateLink endpoint per cluster region, so the app reaches the cluster over private networking.
   - One IAM database user per app. The username is the ECS task role ARN, so the container authenticates with `MONGODB-AWS` and holds no database password.
   - Optional customer-managed KMS encryption at rest, log export, and backup export to module-managed S3 buckets.
-  - Optional debug database user, used with a local `mongosh` or a local app.
+  - Optional debug database user, created only when `features.debug_access_for_cluster` is set. It is used with a local `mongosh` or a local app.
 - **AWS app infrastructure** (the `modules/app-infra` submodule)
   - A VPC with private subnets, an internet gateway for the CloudFront VPC origin, and interface VPC endpoints. A NAT gateway is added only when the caller enables internet egress or skips the interface endpoints.
   - Interface VPC endpoints for ECR, CloudWatch Logs, Secrets Manager, and STS, plus the S3 gateway endpoint.
