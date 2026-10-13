@@ -1,7 +1,55 @@
 from __future__ import annotations
 
+import pytest
+from pydantic import SecretStr
+
 import hybrid_search.ingest as ingest_module
 from hybrid_search.extract import Chunk
+from hybrid_search.settings import HybridSearchSettings
+
+
+class _FakeCollection:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def delete_many(self, query: dict) -> None:
+        self.calls.append("delete")
+
+    async def bulk_write(self, ops: list, ordered: bool = False) -> None:
+        self.calls.append("bulk_write")
+
+
+def _settings() -> HybridSearchSettings:
+    return HybridSearchSettings(mongodb_uri=SecretStr("mongodb://localhost"))
+
+
+@pytest.mark.asyncio
+async def test_ingest_file_deletes_old_chunks_only_after_extraction(tmp_path, monkeypatch):
+    collection = _FakeCollection()
+    path = tmp_path / "doc.txt"
+    path.write_text("stale")
+
+    def fail_extract(*args, **kwargs):
+        raise ValueError("malformed pdf")
+
+    monkeypatch.setattr(ingest_module.extract_module, "extract_chunks", fail_extract)
+
+    with pytest.raises(ValueError, match="malformed pdf"):
+        await ingest_module.ingest_file(path, settings=_settings(), collection=collection)
+
+    assert collection.calls == []
+
+
+@pytest.mark.asyncio
+async def test_ingest_file_replaces_chunks_after_successful_extraction(tmp_path):
+    collection = _FakeCollection()
+    path = tmp_path / "doc.txt"
+    path.write_text("fresh content")
+
+    result = await ingest_module.ingest_file(path, settings=_settings(), collection=collection)
+
+    assert collection.calls == ["delete", "bulk_write"]
+    assert result.chunk_count == 1
 
 
 def test_chunk_doc_id():
@@ -70,3 +118,15 @@ def test_skip_reason_for_filename():
 def test_ingested_file_display_name():
     item = ingest_module.IngestedFile(file_path="/tmp/nested/a.pdf", chunk_count=3)
     assert item.display_name == "a.pdf"
+
+
+@pytest.mark.asyncio
+async def test_ingest_file_deletes_even_when_the_new_file_has_no_chunks(tmp_path):
+    collection = _FakeCollection()
+    path = tmp_path / "doc.txt"
+    path.write_text("   ")
+
+    result = await ingest_module.ingest_file(path, settings=_settings(), collection=collection)
+
+    assert result.chunk_count == 0
+    assert collection.calls == ["delete"]

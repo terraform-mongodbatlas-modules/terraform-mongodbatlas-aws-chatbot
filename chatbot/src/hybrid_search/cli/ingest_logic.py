@@ -117,8 +117,8 @@ async def _ingest_one(
         logger.info(f"skipping unchanged file: {key}")
         result.skipped += 1
         return
-    # A shorter file would otherwise leave stale higher-index chunks behind.
-    await collection.delete_many({"file_path": key})
+    # ingest_file deletes the old chunks itself, after extraction succeeds, so a
+    # failed re-ingest never destroys the searchable chunks.
     ingested = await ingest_file(
         path,
         settings=settings,

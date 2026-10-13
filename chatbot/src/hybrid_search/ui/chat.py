@@ -10,7 +10,7 @@ import chainlit as cl
 from pymongo.errors import PyMongoError
 
 from hybrid_search import extract as extract_module
-from hybrid_search.indexes import create_chunks_indexes_if_missing, index_states
+from hybrid_search.indexes import index_states
 from hybrid_search.ingest import (
     delete_all_chunks,
     delete_by_file_path,
@@ -94,21 +94,24 @@ async def set_starters():
 async def on_chat_start():
     settings = get_settings()
     apply_log_level(settings.log_level)
+    client = None
     try:
         load_demo_queries(settings.demo_queries_path)
         client = get_client(settings)
         collection = chunks_collection(client, settings)
-        if not settings.skip_index_creation:
-            await create_chunks_indexes_if_missing(collection, settings)
         cl.user_session.set("settings", settings)
         cl.user_session.set("client", client)
         cl.user_session.set("collection", collection)
         cl.user_session.set("state_collection", ingest_state_collection(client, settings))
+        # Index creation lives in the app startup task; creating here too would
+        # race it on a fresh deployment. Report state instead.
         states = await index_states(collection, settings)
         if message := problem_message(states, query=False):
             await cl.Message(content=message).send()
     except (OSError, ValueError, RuntimeError, TypeError, PyMongoError) as exc:
         logger.exception("Startup failed")
+        if client is not None:
+            client.close()
         await cl.Message(
             content=(f"Startup failed. Check MONGODB_URI and Atlas access: {exc}")
         ).send()
@@ -116,6 +119,15 @@ async def on_chat_start():
     set_ui_mode(UiMode.QUERY)
     await cl.context.emitter.set_commands([INGEST_COMMAND, DELETE_COMMAND, DEMO_COMMAND])
     await send_default_settings()
+
+
+@cl.on_chat_end
+async def on_chat_end():
+    # Motor client per session; close it so finished sessions do not keep their
+    # connection pools. Idempotent, so a failure-path close cannot conflict.
+    client = cl.user_session.get("client")
+    if client is not None:
+        client.close()
 
 
 @cl.on_settings_update
@@ -272,7 +284,9 @@ async def _delete_ingested_files() -> None:
     actions = [
         cl.Action(
             name=DELETE_FILE_ACTION,
-            payload={"index": index},
+            # Payload carries the stable path, not the list position: the listing
+            # can change between render and click.
+            payload={"file_path": item.file_path},
             label=f"Delete {item.display_name}",
         )
         for index, item in enumerate(files, start=1)
@@ -330,20 +344,20 @@ async def _handle_delete_text_fallback(selection: str) -> None:
 
 @cl.action_callback(DELETE_FILE_ACTION)
 async def on_delete_file(action: cl.Action):
-    index = action.payload.get("index")
-    if not isinstance(index, int):
+    file_path = action.payload.get("file_path")
+    if not isinstance(file_path, str):
         return
     collection = cl.user_session.get("collection")
     state_collection = cl.user_session.get("state_collection")
     files = await list_ingested_files(collection)
-    if not 1 <= index <= len(files):
+    if not any(item.file_path == file_path for item in files):
         await cl.Message(content="That file is no longer available.").send()
         set_ui_mode(UiMode.QUERY)
         return
     await _perform_delete(
         collection=collection,
         state_collection=state_collection,
-        file_paths=[files[index - 1].file_path],
+        file_paths=[file_path],
         delete_all=False,
     )
     set_ui_mode(UiMode.QUERY)

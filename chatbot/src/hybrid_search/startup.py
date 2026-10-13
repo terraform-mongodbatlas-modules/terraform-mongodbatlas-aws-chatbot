@@ -49,14 +49,18 @@ async def run_startup_task(settings: HybridSearchSettings) -> None:
     try:
         collection = chunks_collection(client, settings)
         state_collection = ingest_state_collection(client, settings)
-        await create_chunks_indexes_if_missing(collection, settings)
-        await wait_chunks_indexes_ready(collection, settings)
-        await ingest_dirs(
-            settings,
-            collection,
-            state_collection,
-            settings.document_dirs,
-        )
+        # Honor the same switches as the CLI paths; cmd_index_create overrides
+        # them on purpose, this background path must not.
+        if not settings.skip_index_creation:
+            await create_chunks_indexes_if_missing(collection, settings)
+            await wait_chunks_indexes_ready(collection, settings)
+        if not settings.skip_ingest:
+            await ingest_dirs(
+                settings,
+                collection,
+                state_collection,
+                settings.document_dirs,
+            )
     except INGEST_ERRORS as exc:
         # A background task that raises is invisible and must not take the
         # container down. CancelledError is the one exception that propagates.

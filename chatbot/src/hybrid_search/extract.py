@@ -36,7 +36,10 @@ def _page_texts(path: Path) -> list[str]:
         raise RuntimeError(msg)
     doc = pymupdf.open(path)
     try:
-        return [text for page in doc if (text := page.get_text()).strip()]
+        # Keep blank pages: page numbers must stay physical PDF page numbers, so
+        # _chunk_locations indexes the full page list. Blank pages contribute no
+        # chunks because chunk_text skips empty paragraphs.
+        return [page.get_text() for page in doc]
     finally:
         doc.close()
 

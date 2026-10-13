@@ -134,3 +134,40 @@ def test_extract_chunks_pdf_carries_page(tmp_path: Path, monkeypatch):
     assert chunks[0].page == 1
     assert chunks[0].start_line is None
     assert chunks[0].end_line is None
+
+
+def test_extract_chunks_pdf_keeps_physical_page_numbers(tmp_path: Path, monkeypatch):
+    # Regression: a blank page used to shift later citations down by one.
+
+    class FakePage:
+        def __init__(self, text: str):
+            self._text = text
+
+        def get_text(self) -> str:
+            return self._text
+
+    class FakeDoc:
+        def __init__(self, pages: list[str]):
+            self._pages = [FakePage(text) for text in pages]
+
+        def __iter__(self):
+            return iter(self._pages)
+
+        def close(self) -> None:
+            return None
+
+    blank_page = ""
+    pages = ["a" * 1000, blank_page, "c" * 1000]
+    monkeypatch.setattr(
+        extract_module,
+        "pymupdf",
+        MagicMock(open=MagicMock(return_value=FakeDoc(pages))),
+    )
+    path = tmp_path / "doc.pdf"
+    path.write_bytes(b"%PDF-1.4")
+
+    chunks = extract_module.extract_chunks(path, max_tokens=100)
+
+    # Page 2 is the blank page; no chunk may cite it.
+    assert {chunk.page for chunk in chunks} == {1, 3}
+    assert max(chunk.page for chunk in chunks) == 3

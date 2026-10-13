@@ -100,9 +100,13 @@ async def ingest_file(
     source_name: str | None = None,
     on_progress: OnProgress | None = None,
 ) -> IngestResult:
+    # Extract before deleting: a failed extraction (malformed edited PDF, decode
+    # error) must leave the last good chunks searchable.
     chunks = extract_module.extract_chunks(path, max_tokens=settings.chunk_max_tokens)
     file_path = source_name or str(path)
     total = 0
+    # A shorter file would otherwise leave stale higher-index chunks behind.
+    await collection.delete_many({"file_path": file_path})
     if chunks:
         ops = _upsert_ops(file_path, chunks)
         await collection.bulk_write(ops, ordered=False)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import hybrid_search.ui.chat as chat_module
+from hybrid_search.ingest import IngestedFile
 from hybrid_search.ui.demo import Mode
 
 
@@ -60,6 +61,63 @@ def test_mode_to_ui_mode_mapping():
     assert chat_module._mode_to_ui_mode(Mode.INGEST) == "ingest"
     assert chat_module._mode_to_ui_mode(Mode.DELETE) == "delete"
     assert chat_module._mode_to_ui_mode(Mode.DEMO) == "query"
+
+
+@pytest.mark.asyncio
+async def test_on_chat_end_closes_the_session_client(monkeypatch):
+    session = _patch_session(monkeypatch)
+    closed: list[bool] = []
+
+    class _FakeClient:
+        def close(self) -> None:
+            closed.append(True)
+
+    session.set("client", _FakeClient())
+
+    await chat_module.on_chat_end()
+
+    assert closed == [True]
+
+
+@pytest.mark.asyncio
+async def test_on_chat_end_tolerates_a_missing_client(monkeypatch):
+    _patch_session(monkeypatch)
+
+    await chat_module.on_chat_end()
+
+
+@pytest.mark.asyncio
+async def test_delete_file_callback_verifies_the_file_still_exists(monkeypatch):
+    _patch_session(monkeypatch)
+    deleted: list[list[str]] = []
+
+    async def fake_list(collection):
+        return [IngestedFile(file_path="kept.pdf", chunk_count=2)]
+
+    async def fake_perform_delete(**kwargs):
+        deleted.append(kwargs["file_paths"])
+
+    async def fake_send() -> None:
+        return None
+
+    class _FakeMessage:
+        def __init__(self, content: str = "") -> None:
+            self.content = content
+
+        async def send(self) -> None:
+            await fake_send()
+
+    monkeypatch.setattr(chat_module, "list_ingested_files", fake_list)
+    monkeypatch.setattr(chat_module, "_perform_delete", fake_perform_delete)
+    monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
+
+    stale = type("Action", (), {"payload": {"file_path": "gone.pdf"}})()
+    await chat_module.on_delete_file(stale)
+    assert deleted == []
+
+    current = type("Action", (), {"payload": {"file_path": "kept.pdf"}})()
+    await chat_module.on_delete_file(current)
+    assert deleted == [["kept.pdf"]]
 
 
 @pytest.mark.asyncio

@@ -48,7 +48,11 @@ def cmd_query(
         raise typer.Exit(result.exit_code)
     typer.echo(
         json.dumps(
-            {"answer": result.answer, "source_files": result.source_files},
+            {
+                "answer": result.answer,
+                "references": result.references,
+                "source_files": result.source_files,
+            },
             indent=2,
         )
     )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 import typer
 from pydantic import SecretStr
@@ -55,6 +57,17 @@ def test_cmd_query_passes_mode_and_no_llm(monkeypatch):
 
     assert calls[0].query == "risk"
     assert calls[0].modes == SearchModes(keyword=False, vector=True, llm=False)
+
+
+def test_cmd_query_serializes_references(monkeypatch, capsys):
+    references = [{"file": "a.pdf", "page": 3}]
+    _capture(monkeypatch, QueryOutput(answer=None, references=references))
+
+    cmd_query(query="risk", mode="rank_fusion", no_llm=True)
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["references"] == references
+    assert payload["answer"] is None
 
 
 def test_cmd_query_exits_nonzero(monkeypatch):
