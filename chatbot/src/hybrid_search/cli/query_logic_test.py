@@ -19,7 +19,6 @@ def _result() -> QueryResult:
     return QueryResult(
         references=[{"file_path": "docs/a.md", "content": "ctx", "score": 0.9}],
         answer="answer",
-        source_files=["a.md"],
         modes=SearchModes(llm=False),
         search_result=MagicMock(),
     )

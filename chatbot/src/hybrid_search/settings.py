@@ -51,6 +51,10 @@ class HybridSearchSettings(BaseSettings):
     text_weight: float = 0.4
     enable_llm: bool = True
     rag_system_prompt: str = DEFAULT_RAG_SYSTEM_PROMPT
+    # Snippets the answer context keeps from the retrieved references (the
+    # search pipeline orders hits by relevance first), so the prompt stays
+    # bounded while top_k controls how much is retrieved.
+    llm_max_snippets: int = Field(default=5, ge=1)
     llm_provider: LlmProvider = "anthropic"
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"

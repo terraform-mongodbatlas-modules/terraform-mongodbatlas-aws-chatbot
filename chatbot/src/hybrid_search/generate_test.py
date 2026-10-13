@@ -33,7 +33,7 @@ async def test_generate_answer_retrieval_only():
         settings=settings,
     )
     assert "Retrieval-only" in result.answer
-    assert result.source_files == ["a.pdf"]
+    assert generate_module.unique_source_files([{"file_path": "a.pdf"}]) == ["a.pdf"]
 
 
 @pytest.mark.asyncio
@@ -48,4 +48,24 @@ async def test_generate_answer_calls_llm(monkeypatch):
         "q", [{"file_path": "b.md", "content": "c"}], settings=settings
     )
     assert result.answer == "answer text"
-    assert result.source_files == ["b.md"]
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_limits_context_to_llm_max_snippets(monkeypatch):
+    settings = HybridSearchSettings(
+        mongodb_uri=SecretStr("mongodb://localhost"),
+        anthropic_api_key=SecretStr("anthropic-key"),
+        llm_max_snippets=1,
+    )
+    mock_run = AsyncMock(return_value="answer text")
+    monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
+    references = [
+        {"file_path": "a.pdf", "content": f"snippet {index}"} for index in range(3)
+    ]
+
+    await generate_module.generate_answer("q", references, settings=settings)
+
+    prompt = mock_run.await_args.args[0]
+    assert "snippet 0" in prompt
+    assert "snippet 1" not in prompt
+    assert "snippet 2" not in prompt

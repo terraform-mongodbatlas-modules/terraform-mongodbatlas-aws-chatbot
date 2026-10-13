@@ -127,6 +127,22 @@ def test_chunk_max_tokens_rejects_above_context_window(monkeypatch):
         _settings(chunk_max_tokens=1_200)
 
 
+def test_llm_max_snippets_default():
+    assert _settings().llm_max_snippets == 5
+
+
+def test_llm_max_snippets_env(monkeypatch):
+    monkeypatch.setenv("LLM_MAX_SNIPPETS", "3")
+    assert _settings().llm_max_snippets == 3
+
+
+def test_llm_max_snippets_rejects_zero_or_negative():
+    with pytest.raises(ValueError, match="llm_max_snippets"):
+        _settings(llm_max_snippets=0)
+    with pytest.raises(ValueError, match="llm_max_snippets"):
+        _settings(llm_max_snippets=-1)
+
+
 def test_document_dirs_defaults_to_bundled_corpus():
     assert _settings().document_dirs == [Path("assets/document_dirs")]
 

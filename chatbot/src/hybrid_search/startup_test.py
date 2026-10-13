@@ -13,7 +13,7 @@ class _FakeClient:
     def __init__(self) -> None:
         self.closed = False
 
-    def __getitem__(self, key: str) -> "_FakeClient":
+    def __getitem__(self, key: str) -> _FakeClient:
         # mongo.py subscripts client[db][collection]; the patched helpers ignore
         # the collection, so returning self is enough.
         return self

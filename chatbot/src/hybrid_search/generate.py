@@ -11,7 +11,6 @@ from hybrid_search.settings import HybridSearchSettings
 @dataclass(frozen=True)
 class GenerateResult:
     answer: str
-    source_files: list[str]
 
 
 def unique_source_files(references: list[dict[str, Any]]) -> list[str]:
@@ -35,23 +34,19 @@ async def generate_answer(
     *,
     settings: HybridSearchSettings,
 ) -> GenerateResult:
-    source_files = unique_source_files(references)
     if settings.enable_llm:
-        context = _build_context(references)
+        context = _build_context(references, max_snippets=settings.llm_max_snippets)
         prompt = (
             "Answer the question using only the context snippets. "
             "If the context is insufficient, say so briefly.\n\n"
             f"Question: {query}\n\nContext:\n{context}"
         )
         answer = await llm_module.run_rag_prompt(prompt, settings=settings)
-        return GenerateResult(answer=answer, source_files=source_files)
-    return GenerateResult(
-        answer="Retrieval-only mode (ENABLE_LLM=false). See sources below.",
-        source_files=source_files,
-    )
+        return GenerateResult(answer=answer)
+    return GenerateResult(answer="Retrieval-only mode (ENABLE_LLM=false). See sources below.")
 
 
-def _build_context(references: list[dict[str, Any]], *, max_snippets: int = 5) -> str:
+def _build_context(references: list[dict[str, Any]], *, max_snippets: int) -> str:
     parts: list[str] = []
     for ref in references[:max_snippets]:
         content = ref.get("content", "").strip()

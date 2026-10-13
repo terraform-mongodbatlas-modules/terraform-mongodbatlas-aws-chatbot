@@ -60,13 +60,14 @@ def test_cmd_query_passes_mode_and_no_llm(monkeypatch):
 
 
 def test_cmd_query_serializes_references(monkeypatch, capsys):
-    references = [{"file": "a.pdf", "page": 3}]
+    references = [{"file_path": "a.pdf", "page": 3}]
     _capture(monkeypatch, QueryOutput(answer=None, references=references))
 
     cmd_query(query="risk", mode="rank_fusion", no_llm=True)
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["references"] == references
+    assert payload["source_files"] == ["a.pdf"]
     assert payload["answer"] is None
 
 

@@ -16,9 +16,13 @@ from hybrid_search.settings import HybridSearchSettings
 class QueryResult:
     references: list[dict[str, Any]]
     answer: str | None
-    source_files: list[str]
     modes: SearchModes
     search_result: SearchResult
+
+    @property
+    def source_files(self) -> list[str]:
+        # Derived, not stored: the files behind the retrieved references.
+        return unique_source_files(self.references)
 
 
 async def retrieve(
@@ -46,20 +50,17 @@ async def answer_or_format(
     settings: HybridSearchSettings,
 ) -> QueryResult:
     references = search_result.references
-    source_files = unique_source_files(references)
     if modes.llm and settings.enable_llm:
         result = await generate_answer(query, references, settings=settings)
         return QueryResult(
             references=references,
             answer=result.answer,
-            source_files=result.source_files,
             modes=modes,
             search_result=search_result,
         )
     return QueryResult(
         references=references,
         answer=None,
-        source_files=source_files,
         modes=modes,
         search_result=search_result,
     )

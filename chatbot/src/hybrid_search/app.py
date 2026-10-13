@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # this must run before the chainlit import below.
 ensure_chainlit_app_root()
 
-from chainlit.utils import mount_chainlit  # noqa: E402
+from chainlit.utils import mount_chainlit
 
 # Resolve the Chainlit entrypoint from this file so the app runs from any working
 # directory (the workspace root under pytest, /app in the image).

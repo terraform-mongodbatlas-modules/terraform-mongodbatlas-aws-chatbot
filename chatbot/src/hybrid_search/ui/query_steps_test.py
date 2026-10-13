@@ -50,7 +50,6 @@ async def test_run_query_with_steps_calls_retrieve_then_answer():
         return_value=QueryResult(
             references=_REFERENCES,
             answer="generated",
-            source_files=["a.pdf"],
             modes=SearchModes(),
             search_result=_SEARCH_RESULT,
         )
@@ -79,7 +78,6 @@ async def test_run_query_with_steps_retrieval_only_formats_in_answer_step():
         return_value=QueryResult(
             references=_REFERENCES,
             answer=None,
-            source_files=["a.pdf"],
             modes=SearchModes(keyword=True, vector=True, llm=False),
             search_result=_SEARCH_RESULT,
         )

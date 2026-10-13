@@ -6,6 +6,7 @@ import logging
 from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
+from hybrid_search.generate import unique_source_files
 from hybrid_search.mongo import chunks_collection, get_client
 from hybrid_search.search_modes import SearchModes
 from hybrid_search.settings import HybridSearchSettings
@@ -26,8 +27,12 @@ class QueryOutput(BaseModel):
     exit_code: int = 0
     references: list[dict] = Field(default_factory=list)
     answer: str | None = None
-    source_files: list[str] = Field(default_factory=list)
     error: str | None = None
+
+    @property
+    def source_files(self) -> list[str]:
+        # Derived, not stored: the files behind the retrieved references.
+        return unique_source_files(self.references)
 
 
 def run_query(input: QueryInput) -> QueryOutput:
@@ -48,7 +53,6 @@ async def _run_query_async(input: QueryInput) -> QueryOutput:
         return QueryOutput(
             references=result.references,
             answer=result.answer,
-            source_files=result.source_files,
         )
     except QUERY_ERRORS as exc:
         logger.error(f"query failed: {exc}")
