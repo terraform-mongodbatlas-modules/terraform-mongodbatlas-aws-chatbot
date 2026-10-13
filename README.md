@@ -72,7 +72,7 @@ The named internals and the bring-your-own mechanisms are reached through `overr
 
 ## Architecture
 
-The module composes the published Landing Zone modules with the app modules in this repository. One apply creates an Atlas project and cluster, a VPC with private networking, an ECS Fargate service behind CloudFront, and a CodeBuild image pipeline. See [docs/architecture.md](docs/architecture.md) for the request flow and the full resource list.
+The module composes the published [Landing Zone modules](https://registry.terraform.io/namespaces/terraform-mongodbatlas-modules) with the app modules in this repository. One apply creates an Atlas project and cluster, a VPC with private networking, an ECS Fargate service behind CloudFront, and a CodeBuild image pipeline. See [docs/architecture.md](docs/architecture.md) for the request flow and the full resource list.
 
 ## Security and IAM
 
