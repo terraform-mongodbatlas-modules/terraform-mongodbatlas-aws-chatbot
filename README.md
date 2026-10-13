@@ -3,7 +3,7 @@
 This repository holds an example pattern module that deploys a demo hybrid search chatbot on AWS with MongoDB Atlas. The database runs in Atlas, and the application stack deploys into your own AWS account and bills to it.
 
 > [!IMPORTANT]
-> This module is a demo of a production-shaped deployment, not a supported product. It carries no stability guarantee, and the repository may be archived if adoption does not materialize. It is a starting point to fork and evaluate; do not run it as-is for production workloads.
+> This module is a demo of a production-shaped deployment, not a supported product. It carries no stability guarantee, and the repository might be archived if adoption does not materialize. It is a starting point to fork and evaluate; do not run it as-is for production workloads.
 
 The module is built on the published MongoDB Atlas Landing Zone modules with a production-grade architecture: Atlas over PrivateLink, a private ECS Fargate service with no public IP, and CloudFront with WAF at the edge. To reuse the Landing Zone modules in your own stack, start from [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples).
 
