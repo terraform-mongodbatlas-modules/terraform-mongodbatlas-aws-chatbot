@@ -1,9 +1,11 @@
 # Atlas AWS Chatbot Terraform Module
 
-This repository holds an example pattern module that deploys the hybrid search chatbot on AWS with MongoDB Atlas. The database runs in Atlas, and the application stack deploys into your own AWS account and bills to it.
+This repository holds an example pattern module that deploys a demo hybrid search chatbot on AWS with MongoDB Atlas. The database runs in Atlas, and the application stack deploys into your own AWS account and bills to it.
 
 > [!IMPORTANT]
-> This module is an example of a production-shaped deployment. It carries no stability guarantee and the repository may be archived if adoption does not materialize.
+> This module is a demo of a production-shaped deployment, not a supported product. It carries no stability guarantee, and the repository may be archived if adoption does not materialize. It is a starting point to fork and evaluate; do not run it as-is for production workloads.
+
+The module is built on the published MongoDB Atlas Landing Zone modules with a production-grade architecture: Atlas over PrivateLink, a private ECS Fargate service with no public IP, and CloudFront with WAF at the edge. To reuse the Landing Zone modules in your own stack, start from [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples).
 
 ![Chatbot UI](docs/images/chat-ui-placeholder.svg)
 
@@ -149,6 +151,10 @@ Set `features.debug_access_for_cluster = true` to add the caller IP to the proje
 ### Where do I find the Landing Zone module inputs?
 
 Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
+
+### How is this different from the examples in atlas-examples?
+
+The [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples) repository holds reference configurations for the Landing Zone modules, one per module to copy and customize. This repository goes further: it is one module and one `terraform apply` that deploys a working application end to end, including the app image build and the running service. Use atlas-examples when you want the reusable modules; use this repository when you want the chatbot demo running.
 
 <!-- BEGIN_TF_DOCS -->
 <!-- @generated

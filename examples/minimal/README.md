@@ -2,6 +2,9 @@
 
 Deploy the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
 
+> [!NOTE]
+> This example deploys the demo chatbot. It is not supported for production use. See the [module README](../../README.md) for the stability disclaimer.
+
 The apply creates the following:
 
 - An Atlas project and a sharded cluster, with the connection string wired to the app.
