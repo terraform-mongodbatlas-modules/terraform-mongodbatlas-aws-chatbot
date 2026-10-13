@@ -18,9 +18,12 @@ examples_readme:
 
 tables:
   - name: Examples
-    columns: ["feature", "name"]
+    columns: ["feature", "name", "description"]
     link_column: name
     example_rows:
       - folder_name: minimal
         feature: Chatbot
         name: Minimal deployment
+        description: >-
+          Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one
+          `terraform apply`.

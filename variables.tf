@@ -18,7 +18,7 @@ variable "app_name" {
 }
 
 variable "regions" {
-  description = "Atlas cluster regions. Use AWS region names (for example us-east-1); the Atlas form (US_EAST_1) is also accepted. The app runs in the first region."
+  description = "[Atlas-supported AWS cluster regions](https://www.mongodb.com/docs/atlas/reference/amazon-aws/). Use AWS region names (for example us-east-1); the Atlas form (US_EAST_1) is also accepted. The app runs in the first region."
   type = list(object({
     name       = string
     node_count = optional(number, 3)

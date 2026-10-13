@@ -11,21 +11,6 @@ The apply creates the following:
 
 `features.verify_deployment_ready = true` makes the apply poll `/health` until the app is ready. The app creates the search indexes and ingests the bundled corpus in a background task on startup, so the first apply ends at a reachable chat UI.
 
-## Log in
-
-Open the `https_url` in a browser and sign in with the demo credentials:
-
-- Username: `demo`
-- Password: `terraform output -raw chatbot_login_password`
-
-The demo uses a single shared login. A real application would use its own authentication and authorization instead.
-
-## Expected output
-
-- `https_url`: the CloudFront URL for the chat UI.
-- `chatbot.login_username`: `demo`.
-- `chatbot_login_password`: the demo password (sensitive; also stored in the app secret).
-
 ## Prerequisites
 
 If you are familiar with Terraform and already have Atlas API credentials and AWS credentials configured, go to [commands](#commands).
@@ -39,21 +24,6 @@ To deploy the hybrid search chatbot on AWS with Terraform:
    **NOTE**: Service Accounts (SA) are the preferred authentication method. See [Grant Programmatic Access to an Organization](https://www.mongodb.com/docs/atlas/configure-api-access/#grant-programmatic-access-to-an-organization) in the MongoDB Atlas documentation for detailed instructions on configuring SA access to your project.
 
 4. Configure your AWS credentials for the account and region you deploy into.
-
-## Commands
-
-```sh
-terraform init # downloads the providers and creates a terraform.lock.hcl file
-# configure authentication (AWS credentials and MONGODB_ATLAS_XXX env vars)
-terraform apply
-# open the chat UI at the CloudFront URL and sign in as `demo`
-terraform output https_url
-terraform output -raw chatbot_login_password
-```
-
-## Customize
-
-This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md). The named internals are reached through `overrides`: your own VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), a custom domain (`overrides.domain`), a fixed debug IP (`overrides.allowed_ip`), and extra apps (`overrides.extra_apps`).
 
 ## Code snippet
 
@@ -159,6 +129,36 @@ output "chatbot_login_password" {
   sensitive   = true
 }
 ```
+
+## Commands
+
+```sh
+terraform init # downloads the providers and creates a terraform.lock.hcl file
+# configure authentication (AWS credentials and MONGODB_ATLAS_XXX env vars)
+terraform apply
+# open the chat UI at the CloudFront URL and sign in as `demo`
+terraform output https_url
+terraform output -raw chatbot_login_password
+```
+
+## Expected output
+
+- `https_url`: the CloudFront URL for the chat UI.
+- `chatbot.login_username`: `demo`.
+- `chatbot_login_password`: the demo password (sensitive; also stored in the app secret).
+
+## Log in
+
+Open the `https_url` in a browser and sign in with the demo credentials:
+
+- Username: `demo`
+- Password: `terraform output -raw chatbot_login_password`
+
+The demo uses a single shared login. A real application would use its own authentication and authorization instead.
+
+## Customize
+
+This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md). The named internals are reached through `overrides`: your own VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), a custom domain (`overrides.domain`), a fixed debug IP (`overrides.allowed_ip`), and extra apps (`overrides.extra_apps`).
 
 ## Tear down
 

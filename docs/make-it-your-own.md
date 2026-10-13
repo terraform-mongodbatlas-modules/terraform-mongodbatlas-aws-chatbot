@@ -34,9 +34,9 @@ Apply with `features.debug_access_for_cluster = true`, then run `just dump-local
 
 ## Demo questions by persona
 
-Tailor the starter set to who is in the room: a developer or platform engineer, an applied AI engineer, a founder or CTO, a VP or security reviewer, a data engineer coming from Postgres and a vector store, or a pre-sales SA. Pick from the list below, or write your own.
+Tailor the starter questions to your audience. For example, a developer or platform engineer, an applied AI engineer, a founder or CTO, a VP or security reviewer, a data engineer coming from Postgres and a vector store, or a pre-sales SA. Pick a persona from the list below, or write your own.
 
-The bundled corpus answers the MongoDB questions (Why one database, Why not Postgres, Hybrid ranking, Agent memory, Embedding freshness) and the deployment question (Security posture). Make it your own answers generically from this guide's bundled copy. A question about your own product needs your documents, so add them with `document_dirs`.
+The bundled corpus answers the MongoDB questions ("Why one database", "Why not Postgres", "Hybrid ranking", "Agent memory", "Embedding freshness") and the deployment question ("Security posture"). The "Make it your own" question returns a generic answer from this guide's bundled copy. A question about your own product needs your documents, so add them with `document_dirs`.
 
 ```hcl
 queries = [
@@ -50,11 +50,11 @@ queries = [
 ]
 ```
 
-The chips appear in list order. Reorder or drop entries to fit the audience.
+The chips appear in list order. Reorder or drop entries to fit your audience.
 
 ## Landing Zone modules
 
-The module composes the published [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest) modules. Their full schemas live in the registry.
+The module composes the published [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest) modules. Their full schemas live in the Terraform registry.
 
 ## Feedback
 

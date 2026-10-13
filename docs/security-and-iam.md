@@ -1,12 +1,12 @@
 # Security and IAM
 
-This guide covers the permissions you need to deploy the module and the roles the module creates for the running app. It separates the deployer identity from the runtime identity, so you can scope each one to what it actually does.
+This guide covers the permissions you need to deploy the module and the roles the module creates for the running app. The two are separate by design: you scope the deployer identity to the resources the module manages, and the module scopes each runtime role to the services the app calls. Granting one never grants the other.
 
 ## Deployer permissions
 
 To run the example, the AWS identity that runs `terraform apply` needs permission to create and delete the resources the module manages: VPC and networking resources, ECR, CodeBuild, ECS, the Application Load Balancer, CloudFront, WAF, Secrets Manager, S3, IAM roles and policies, and KMS when `features.atlas_byok` is set.
 
-The following combined policy is a placeholder that shows the shape, not a policy you can attach. As written it grants unrestricted administrator access, so do not paste or attach it. Replace the statement with the least-privilege actions you capture for your account before you create an IAM user for the demo. For a Terraform-managed deployer role, split the policy per service and attach it to the role.
+The following combined policy is a placeholder. It shows the document structure only, with no real action list. As written, it grants unrestricted administrator access, so do not paste or attach it. Replace the statement with the least-privilege actions you capture for your account before you create an IAM user for the demo. For a Terraform-managed deployer role, split the policy per service and attach it to the role.
 
 <!-- TODO: replace the placeholder statement with the least-privilege policy you capture
      for your account. Record the actions from a create, update, and delete cycle, then
@@ -32,7 +32,7 @@ The module creates the Atlas project, so the credential it uses needs access to 
 
 The credential is read from the standard `mongodbatlas` provider authentication environment variables or from your provider configuration. The module reads the organization ID from the credential, so there is no `atlas_org_id` input.
 
-## Roles the module creates
+## Runtime identities
 
 The module creates runtime identities that are separate from the deployer identity. Granting deployer permissions does not grant the running app any of them.
 

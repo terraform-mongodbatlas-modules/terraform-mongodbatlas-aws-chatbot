@@ -1,7 +1,8 @@
 # Atlas AWS Chatbot Terraform Module
 
-This repository holds an example pattern module that deploys the hybrid search chatbot on AWS with MongoDB Atlas.
+This repository holds an example pattern module that deploys the hybrid search chatbot on AWS with MongoDB Atlas. The database runs in Atlas, and the application stack deploys into your own AWS account and bills to it.
 
+> [!IMPORTANT]
 > This module is an example of a production-shaped deployment. It carries no stability guarantee and the repository may be archived if adoption does not materialize.
 
 ![Chatbot UI](docs/images/chat-ui-placeholder.svg)
@@ -35,9 +36,9 @@ Changes will be overwritten when documentation is regenerated.
 Run 'just gen-readme' to regenerate. -->
 ## Examples
 
-Feature | Name
---- | ---
-Chatbot | [Minimal deployment](./examples/minimal)
+Feature | Name | Description
+--- | --- | ---
+Chatbot | [Minimal deployment](./examples/minimal) | Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
 
 <!-- END_TABLES -->
 
@@ -85,7 +86,7 @@ A single shared username and password: `demo` and the `chatbot_login_password` o
 
 ### How much does this cost?
 
-The stack bills while it is up. The inputs that move the bill are:
+The stack bills to your AWS account and Atlas organization while it is up. The inputs that move the bill are:
 
 - `features.waf`: the AWS Managed Rules Common Rule Set on CloudFront.
 - `features.vpc_endpoints`: the interface VPC endpoints, billed per AZ-hour.
@@ -242,7 +243,7 @@ Type: `string`
 
 ### regions
 
-Atlas cluster regions. Use AWS region names (for example us-east-1); the Atlas form (US_EAST_1) is also accepted. The app runs in the first region.
+[Atlas-supported AWS cluster regions](https://www.mongodb.com/docs/atlas/reference/amazon-aws/). Use AWS region names (for example us-east-1); the Atlas form (US_EAST_1) is also accepted. The app runs in the first region.
 
 Type:
 
