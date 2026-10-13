@@ -101,13 +101,21 @@ def main() -> None:
     if not args.tag:
         raise SystemExit("--tag must not be empty")
 
-    # ECR is IMMUTABLE, so a push over an existing tag fails mid-build. Fail
-    # fast instead, with a message that names the collision.
+    # ECR is IMMUTABLE and the tag is content-addressed, so an existing tag
+    # means this exact source is already built. Reuse it and skip the build
+    # instead of failing a push that would collide mid-build. This keeps a
+    # restore to a previously-built source a no-op.
     if args.ecr_repo and tag_exists(args.region, args.ecr_repo, args.tag):
-        raise SystemExit(
-            f"Tag {args.tag} already exists in {args.ecr_repo}. "
-            "ECR is IMMUTABLE; bump the source or the tag."
-        )
+        result = {
+            "status": "SKIPPED",
+            "tag": args.tag,
+            "reason": f"tag already exists in {args.ecr_repo}",
+        }
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(result, indent=2) + "\n")
+        print(json.dumps(result, indent=2))
+        return
 
     started = time.monotonic()
     build_id = start(args.project, args.tag, args.region)

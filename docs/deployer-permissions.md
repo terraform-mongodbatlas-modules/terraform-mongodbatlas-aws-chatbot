@@ -16,7 +16,7 @@ The module tags every resource it creates with two built-in tags: `Example = atl
 AWS authorizes each call against either the tags in the request or the tags on an existing resource:
 
 - **Create** calls carry `aws:RequestTag/Example = atlas-aws-chatbot`. The module sends the tag in the create request, so the create succeeds only for the module's own resources.
-- **Manage and delete** calls carry `aws:ResourceTag/Example = atlas-aws-chatbot`. The resource already exists and is tagged, so the call succeeds only against a resource the module created.
+- **Manage and delete** calls carry `aws:ResourceTag/Example = atlas-aws-chatbot`. The resource already exists and is tagged, so the call succeeds only against a resource the module created. A tag change is a manage, not a create: the update request carries only the changed tags, so it never matches `aws:RequestTag`.
 - **Read** calls stay on `Resource: "*"` with no condition. Most read APIs have no resource-level support, so a condition cannot narrow them.
 
 A small set of actions cannot use either condition, because AWS authorizes them against a parent resource or an untaggable one. They stay on `"*"` with no condition. See [Exceptions](#exceptions).
@@ -48,6 +48,8 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Action": [
         "cloudfront:DeleteDistribution",
         "cloudfront:DeleteVpcOrigin",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource",
         "cloudfront:UpdateDistribution"
       ],
       "Resource": "*",
@@ -87,7 +89,11 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
     {
       "Sid": "CodebuildManage2",
       "Effect": "Allow",
-      "Action": ["codebuild:DeleteProject", "codebuild:StartBuild"],
+      "Action": [
+        "codebuild:DeleteProject",
+        "codebuild:StartBuild",
+        "codebuild:UpdateProject"
+      ],
       "Resource": "*",
       "Condition": {
         "StringEquals": {
@@ -129,11 +135,13 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "ec2:AssociateRouteTable",
         "ec2:AttachInternetGateway",
         "ec2:CreateRoute",
+        "ec2:CreateTags",
         "ec2:DeleteInternetGateway",
         "ec2:DeleteRoute",
         "ec2:DeleteRouteTable",
         "ec2:DeleteSecurityGroup",
         "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
         "ec2:DeleteVpc",
         "ec2:DeleteVpcEndpoints",
         "ec2:DescribeVpcAttribute",
@@ -198,7 +206,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "ecr:DescribeRepositories",
         "ecr:GetLifecyclePolicy",
         "ecr:ListTagsForResource",
-        "ecr:PutLifecyclePolicy"
+        "ecr:PutLifecyclePolicy",
+        "ecr:TagResource",
+        "ecr:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -232,6 +242,8 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "ecs:DescribeServiceDeployments",
         "ecs:DescribeServices",
         "ecs:ListServiceDeployments",
+        "ecs:TagResource",
+        "ecs:UntagResource",
         "ecs:UpdateService"
       ],
       "Resource": "*",
@@ -247,6 +259,7 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Action": [
         "ecs:DeregisterTaskDefinition",
         "ecs:DescribeTaskDefinition",
+        "ecs:ListTagsForResource",
         "ecs:TagResource"
       ],
       "Resource": "*"
@@ -272,12 +285,14 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Sid": "ElbManage2",
       "Effect": "Allow",
       "Action": [
+        "elasticloadbalancing:AddTags",
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:ModifyTargetGroupAttributes"
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:RemoveTags"
       ],
       "Resource": "*",
       "Condition": {
@@ -325,6 +340,7 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "iam:DetachRolePolicy",
         "iam:PutRolePolicy",
         "iam:TagRole",
+        "iam:UntagRole",
         "iam:UpdateAssumeRolePolicy"
       ],
       "Resource": [
@@ -377,7 +393,18 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       }
     },
     {
-      "Sid": "LogsRead2",
+      "Sid": "LogsManage2",
+      "Effect": "Allow",
+      "Action": ["logs:TagResource", "logs:UntagResource"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "LogsRead3",
       "Effect": "Allow",
       "Action": [
         "logs:DeleteLogGroup",
@@ -428,7 +455,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "s3:PutEncryptionConfiguration",
         "s3:PutLifecycleConfiguration",
         "s3:PutObject",
-        "s3:PutObjectTagging"
+        "s3:PutObjectTagging",
+        "s3:TagResource",
+        "s3:UntagResource"
       ],
       "Resource": [
         "arn:aws:s3:::{resource_prefix}-*",
@@ -454,7 +483,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
         "secretsmanager:DescribeSecret",
         "secretsmanager:GetResourcePolicy",
         "secretsmanager:GetSecretValue",
-        "secretsmanager:PutSecretValue"
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:TagResource",
+        "secretsmanager:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -486,7 +517,9 @@ The policy requires the boundary. Set `overrides.permissions_boundary` as shown 
       "Action": [
         "wafv2:DeleteWebACL",
         "wafv2:GetWebACL",
-        "wafv2:ListTagsForResource"
+        "wafv2:ListTagsForResource",
+        "wafv2:TagResource",
+        "wafv2:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -530,6 +563,8 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Action": [
         "cloudfront:DeleteDistribution",
         "cloudfront:DeleteVpcOrigin",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource",
         "cloudfront:UpdateDistribution"
       ],
       "Resource": "*",
@@ -569,7 +604,11 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
     {
       "Sid": "CodebuildManage2",
       "Effect": "Allow",
-      "Action": ["codebuild:DeleteProject", "codebuild:StartBuild"],
+      "Action": [
+        "codebuild:DeleteProject",
+        "codebuild:StartBuild",
+        "codebuild:UpdateProject"
+      ],
       "Resource": "*",
       "Condition": {
         "StringEquals": {
@@ -613,12 +652,14 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "ec2:AssociateRouteTable",
         "ec2:AttachInternetGateway",
         "ec2:CreateRoute",
+        "ec2:CreateTags",
         "ec2:DeleteInternetGateway",
         "ec2:DeleteNatGateway",
         "ec2:DeleteRoute",
         "ec2:DeleteRouteTable",
         "ec2:DeleteSecurityGroup",
         "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
         "ec2:DeleteVpc",
         "ec2:DeleteVpcEndpoints",
         "ec2:DescribeVpcAttribute",
@@ -690,7 +731,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "ecr:DescribeRepositories",
         "ecr:GetLifecyclePolicy",
         "ecr:ListTagsForResource",
-        "ecr:PutLifecyclePolicy"
+        "ecr:PutLifecyclePolicy",
+        "ecr:TagResource",
+        "ecr:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -724,6 +767,8 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "ecs:DescribeServiceDeployments",
         "ecs:DescribeServices",
         "ecs:ListServiceDeployments",
+        "ecs:TagResource",
+        "ecs:UntagResource",
         "ecs:UpdateService"
       ],
       "Resource": "*",
@@ -739,6 +784,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Action": [
         "ecs:DeregisterTaskDefinition",
         "ecs:DescribeTaskDefinition",
+        "ecs:ListTagsForResource",
         "ecs:TagResource"
       ],
       "Resource": "*"
@@ -764,12 +810,14 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Sid": "ElbManage2",
       "Effect": "Allow",
       "Action": [
+        "elasticloadbalancing:AddTags",
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:ModifyTargetGroupAttributes"
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:RemoveTags"
       ],
       "Resource": "*",
       "Condition": {
@@ -817,6 +865,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "iam:DetachRolePolicy",
         "iam:PutRolePolicy",
         "iam:TagRole",
+        "iam:UntagRole",
         "iam:UpdateAssumeRolePolicy"
       ],
       "Resource": [
@@ -877,7 +926,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "kms:GetKeyPolicy",
         "kms:GetKeyRotationStatus",
         "kms:ListResourceTags",
-        "kms:ScheduleKeyDeletion"
+        "kms:ScheduleKeyDeletion",
+        "kms:TagResource",
+        "kms:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -909,7 +960,18 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       }
     },
     {
-      "Sid": "LogsRead2",
+      "Sid": "LogsManage2",
+      "Effect": "Allow",
+      "Action": ["logs:TagResource", "logs:UntagResource"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Example": "atlas-aws-chatbot"
+        }
+      }
+    },
+    {
+      "Sid": "LogsRead3",
       "Effect": "Allow",
       "Action": [
         "logs:DeleteLogGroup",
@@ -960,7 +1022,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "s3:PutEncryptionConfiguration",
         "s3:PutLifecycleConfiguration",
         "s3:PutObject",
-        "s3:PutObjectTagging"
+        "s3:PutObjectTagging",
+        "s3:TagResource",
+        "s3:UntagResource"
       ],
       "Resource": [
         "arn:aws:s3:::{resource_prefix}-*",
@@ -986,7 +1050,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
         "secretsmanager:DescribeSecret",
         "secretsmanager:GetResourcePolicy",
         "secretsmanager:GetSecretValue",
-        "secretsmanager:PutSecretValue"
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:TagResource",
+        "secretsmanager:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -1018,7 +1084,9 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
       "Action": [
         "wafv2:DeleteWebACL",
         "wafv2:GetWebACL",
-        "wafv2:ListTagsForResource"
+        "wafv2:ListTagsForResource",
+        "wafv2:TagResource",
+        "wafv2:UntagResource"
       ],
       "Resource": "*",
       "Condition": {
@@ -1041,7 +1109,7 @@ This is the policy for a deployment with every feature on: WAF, interface VPC en
 
 A bundle this size exceeds the 6,144-character managed-policy limit. Two ways to attach it:
 
-- **Inline policy.** Minify the JSON and attach it as one inline policy on the deployer role. The full bundle is about 9.7 KB without the formatting whitespace and the minimal bundle about 8.9 KB, both under the 10,240-character role inline limit.
+- **Inline policy.** Minify the JSON and attach it as one inline policy on the deployer role. The minimal bundle is about 9.3 KB without the formatting whitespace, under the 10,240-character role inline limit. The full bundle is about 10.2 KB, which exceeds that limit, so attach it as managed policies instead.
 - **Managed policies.** Split the bundle by service, one `aws_iam_policy` per service, and attach each to the role. A per-service file stays well under the limit, and a failure names the service. That split yields 13 policies for the minimal bundle and 14 for the full bundle, over the default quota of 10 managed policies attached to a role: group services into 10 or fewer policies, or raise the quota.
 
 The IAM statements need two extra constraints when Terraform manages the role:
@@ -1114,12 +1182,15 @@ One classification is easy to get wrong: `secretsmanager:DeleteSecret` is a dele
 The bundles come from a live capture of the module's own API calls. To capture the calls for your version of the module:
 
 1. Record the calls with an [iamlive](https://github.com/iann0036/iamlive) proxy in front of Terraform.
-2. Run all four lifecycle phases through the proxy: `terraform destroy`, then `terraform apply`, then `terraform plan`, then a mutation pass that changes an input (the buildspec, a routing rule), applies again, and restores it.
-3. Turn the captured actions into per-service policy JSON, then combine or attach them as above.
+2. Run the lifecycle phases through the proxy: `terraform destroy`, then `terraform apply`, then `terraform plan`.
+3. Run the update pass on the applied stack: change one tracked input at a time, apply, and restore the baseline between iterations. The tracked inputs are the tag map, a query label, the document directories, the container size, and each feature flag.
+4. Turn the captured actions into per-service policy JSON, then combine or attach them as above.
 
-Each phase contributes actions the others miss. A destroy records the `Delete*`, `Detach*`, and `Revoke*` calls. An apply records the `Create*`, `Put*`, and `Attach*` calls. A plan records the `Describe*`, `List*`, and `Get*` reads. The mutation pass records the update-only calls, such as `codebuild:UpdateProject` for a generated-buildspec change and `elasticloadbalancing:ModifyRule` for a routing change. A create-only capture misses every delete, and the three-phase capture misses every update.
+Each phase contributes actions the others miss. A destroy records the `Delete*`, `Detach*`, and `Revoke*` calls. An apply records the `Create*`, `Put*`, and `Attach*` calls. A plan records the `Describe*`, `List*`, and `Get*` reads. A create-only capture misses every delete, and the three-phase capture misses every update.
 
-The bundles in this guide came from a three-phase capture, so they omit the update-only actions. Add the actions your own mutation pass surfaces.
+The update pass contributes the calls that fire only when Terraform updates an existing resource. The headline gaps are `codebuild:UpdateProject`, which a CodeBuild tag change calls, and the untag family (`ecr:UntagResource`, `wafv2:UntagResource`, `iam:UntagRole`, and the rest). It also widens the tag actions: `ecr:TagResource`, `wafv2:TagResource`, `secretsmanager:TagResource`, and `ec2:CreateTags` keep their `aws:RequestTag` allowance and gain a `aws:ResourceTag` one, because a tag change on an existing resource is a manage.
+
+The bundles in this guide came from a three-phase capture, so they omit the update-only actions. Add the actions your own update pass surfaces.
 
 Lesson from the first capture: the destroy path surfaced five actions the apply never called (`elasticloadbalancing:DeleteRule`, `DeleteListener`, `cloudfront:GetDistribution`, `ec2:DisassociateAddress`, `secretsmanager:DeleteSecret`). Run destroy before apply, and re-run until both are clean.
 
