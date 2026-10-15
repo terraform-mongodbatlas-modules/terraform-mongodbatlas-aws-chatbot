@@ -25,9 +25,9 @@ STUBS = {
 ALLOWLIST = ("bash", "env", "uname", "sed", "grep", "tr")
 
 
-def write_stub(bin_dir: Path, name: str, output: str) -> None:
+def write_stub(bin_dir: Path, name: str, output: str, exit_code: int = 0) -> None:
     stub = bin_dir / name
-    stub.write_text(f'#!/usr/bin/env bash\necho "{output}"\n')
+    stub.write_text(f'#!/usr/bin/env bash\necho "{output}"\nexit {exit_code}\n')
     stub.chmod(0o755)
 
 
@@ -115,3 +115,28 @@ def test_optional_probe_failure_stays_advisory(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert "[ok]       just unknown (optional)" in result.stdout
     assert "[missing]  docker (optional)" in result.stdout
+
+
+def test_install_runs_missing_tool_command(tmp_path: Path) -> None:
+    write_stub(tmp_path, "terraform", STUBS["terraform"])
+    write_stub(tmp_path, "python3", STUBS["python3"])
+    write_stub(tmp_path, "brew", "Installed awscli")
+    result = run_doctor(tmp_path, "--install")
+    assert result.returncode == 1
+    assert "[missing]  aws" in result.stdout
+    assert "running: brew install awscli" in result.stdout
+    assert "failed:" not in result.stderr
+
+
+def test_install_failure_prints_failure_line_and_continues(tmp_path: Path) -> None:
+    write_stub(tmp_path, "python3", STUBS["python3"])
+    write_stub(tmp_path, "aws", STUBS["aws"])
+    write_stub(tmp_path, "brew", "Error: install refused", exit_code=1)
+    result = run_doctor(tmp_path, "--install")
+    assert result.returncode == 1
+    assert "[missing]  terraform" in result.stdout
+    assert "running: brew install hashicorp/tap/terraform" in result.stdout
+    assert "failed: brew install hashicorp/tap/terraform" in result.stderr
+    assert "[ok]       python3" in result.stdout
+    assert "[ok]       aws" in result.stdout
+    assert "Some tools are missing or outdated" in result.stderr
