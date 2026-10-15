@@ -100,7 +100,7 @@ version_ge() {
 # Echo the install command for a tool on the detected platform, or return 1.
 install_cmd() {
   case "${PLATFORM}:$1" in
-    macos:terraform) echo "brew install terraform" ;;
+    macos:terraform) echo "brew install hashicorp/tap/terraform" ;;
     macos:python3) echo "brew install python" ;;
     macos:aws) echo "brew install awscli" ;;
     macos:just) echo "brew install just" ;;
@@ -132,7 +132,9 @@ report_hint() {
     printf '          install: %s\n' "$cmd"
     if [[ "$INSTALL" == true ]]; then
       printf '          running: %s\n' "$cmd"
-      eval "$cmd"
+      if ! eval "$cmd"; then
+        printf '          failed: %s\n' "$cmd" >&2
+      fi
     fi
   elif [[ -n "$link" ]]; then
     printf '          install: %s\n' "$link"
@@ -149,9 +151,11 @@ check_required() {
     return
   fi
   local have
-  have="$("$tool" "$@" 2>&1 | first_version)"
+  have="$("$tool" "$@" 2>&1 | first_version)" || have=""
   if [[ -z "$have" ]]; then
-    printf '[ok]       %s (version not detected)\n' "$tool"
+    printf '[unknown]  %s (version command failed or printed no version)\n' "$tool"
+    report_hint "$tool"
+    STATUS=1
     return
   fi
   if version_ge "$have" "$min"; then
@@ -168,7 +172,7 @@ check_optional() {
   shift
   if command -v "$tool" >/dev/null 2>&1; then
     local have
-    have="$("$tool" "$@" 2>&1 | first_version)"
+    have="$("$tool" "$@" 2>&1 | first_version)" || have=""
     printf '[ok]       %s %s (optional)\n' "$tool" "${have:-unknown}"
   else
     printf '[missing]  %s (optional)\n' "$tool"
