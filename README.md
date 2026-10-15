@@ -52,6 +52,7 @@ One `terraform apply` deploys everything: the Atlas project and cluster, the AWS
 
 Prerequisites:
 
+- Run `./doctor.sh` from the repository root to check that Terraform, Python 3.10 or later, and the AWS CLI v2 are installed. Add `--install` to install any that are missing.
 - [Terraform](https://developer.hashicorp.com/terraform/install) 1.10 or later.
 - [Python](https://www.python.org/downloads/) 3.10 or later and the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) v2 on `PATH` on the machine that runs `terraform apply`. The apply runs helper scripts through Terraform `local-exec` provisioners to render the assets tree and to start and poll the CodeBuild image build. Neither step has a Terraform-native equivalent: CodeBuild exposes no build resource, so a script owns the start-and-wait, and the AWS CLI is how the script calls it.
 - An AWS account and credentials for the account you deploy into.
