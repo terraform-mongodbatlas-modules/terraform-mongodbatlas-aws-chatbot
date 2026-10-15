@@ -2,6 +2,8 @@
 # The repository vendors the hybrid-search app under chatbot/, which is not
 # SDLC-synced, so this file is not a copy of the shared dependabot_destination.yml.
 # Keep the github-actions entry aligned with the cluster config by hand.
+# The SDLC-synced uv /tools and gomod surfaces stay cluster-owned; do not add
+# entries for them here.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -34,5 +36,3 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: "chore(deps)"
-    labels:
-      - "dependencies"
