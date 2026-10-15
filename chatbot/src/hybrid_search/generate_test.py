@@ -59,9 +59,7 @@ async def test_generate_answer_limits_context_to_llm_max_snippets(monkeypatch):
     )
     mock_run = AsyncMock(return_value="answer text")
     monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
-    references = [
-        {"file_path": "a.pdf", "content": f"snippet {index}"} for index in range(3)
-    ]
+    references = [{"file_path": "a.pdf", "content": f"snippet {index}"} for index in range(3)]
 
     await generate_module.generate_answer("q", references, settings=settings)
 

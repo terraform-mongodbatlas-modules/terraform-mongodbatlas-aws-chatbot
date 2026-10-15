@@ -48,7 +48,7 @@ app = FastAPI(lifespan=lifespan)
 async def health() -> dict | JSONResponse:
     try:
         return await health_payload()
-    except Exception as exc:  # any Mongo failure must become a 503
+    except Exception as exc:  # noqa: BLE001 (any Mongo failure must become a 503)
         logger.warning(f"Health check failed: {exc}")
         return JSONResponse(UNAVAILABLE_PAYLOAD, status_code=503)
 

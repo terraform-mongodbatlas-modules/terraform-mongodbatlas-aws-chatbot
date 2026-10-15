@@ -2,7 +2,7 @@
 # Docker Hub. CodeBuild hosts are anonymous Docker Hub pulls, which hit
 # "429 Too Many Requests" under load; ECR Public has no such rate limit.
 # ---- Builder: resolve and install the virtualenv, keep the uv cache here ----
-FROM public.ecr.aws/docker/library/python:3.13-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.14-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.21 /uv /uvx /bin/
 
@@ -17,7 +17,7 @@ COPY src/ ./src/
 RUN uv sync --frozen --no-dev --extra ui --extra aws
 
 # ---- Runtime: fresh base, only the virtualenv and the sources it points at ----
-FROM public.ecr.aws/docker/library/python:3.13-slim
+FROM public.ecr.aws/docker/library/python:3.14-slim
 
 WORKDIR /app
 

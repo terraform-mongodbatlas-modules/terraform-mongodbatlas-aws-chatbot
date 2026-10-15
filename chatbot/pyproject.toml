@@ -2,7 +2,7 @@
 name = "hybrid-search"
 version = "0.1.0"
 description = "Lean hybrid search demo: Atlas autoEmbed ingest and Atlas $rankFusion"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "certifi",
     "motor",
@@ -42,4 +42,9 @@ consider_namespace_packages = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
+extend-exclude = ["scripts"]
+
+[tool.ruff.lint.flake8-bugbear]
+# typer evaluates these once at import, which is the required pattern for CLI params.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
