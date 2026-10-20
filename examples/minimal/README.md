@@ -18,17 +18,38 @@ The apply creates the following:
 
 If you are familiar with Terraform and already have Atlas API credentials and AWS credentials configured, go to [commands](#commands).
 
-To deploy the hybrid search chatbot on AWS with Terraform:
+To deploy the hybrid search chatbot on AWS with Terraform, you need [Terraform](https://developer.hashicorp.com/terraform/install) 1.10 or later, [Python](https://www.python.org/downloads/) 3.10 or later, and the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) v2 on `PATH`. Choose one of the following workflows, then configure your credentials.
 
-1. Run `./doctor.sh` from the repository root to check that Terraform, Python 3.10 or later, and the AWS CLI v2 are installed. Add `--install` to install any that are missing.
-2. Install [Terraform](https://developer.hashicorp.com/terraform/install) to be able to run `terraform` [commands](#commands).
-3. Install [Python](https://www.python.org/downloads/) 3.10 or later and the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) v2 on `PATH`. The apply runs helper scripts through Terraform `local-exec` provisioners to render the assets tree and to start and poll the CodeBuild image build, which calls the AWS CLI.
-4. [Sign in](https://account.mongodb.com/account/login) to or [create](https://account.mongodb.com/account/register) your MongoDB Atlas Account.
-5. Configure your [authentication](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs#authentication) method. The module creates the Atlas project, so the credential needs access to your Atlas organization.
+### Install tools
 
-   **NOTE**: Service Accounts (SA) are the preferred authentication method. See [Grant Programmatic Access to an Organization](https://www.mongodb.com/docs/atlas/configure-api-access/#grant-programmatic-access-to-an-organization) in the MongoDB Atlas documentation for detailed instructions on configuring SA access to your project.
+#### Automatic workflow (recommended)
 
-6. Configure your AWS credentials for the account and region you deploy into.
+Download `doctor.sh` and run it. This reports the tools that you need in order to deploy the hybrid search chatbot. Run `doctor.sh` with `--install` to run the install commands for each missing tool where the script has one. On macOS, the command runs [Homebrew](https://brew.sh) commands. On Linux, it installs Python and prints install links for Terraform and the AWS CLI.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/main/doctor.sh -o doctor.sh
+chmod +x doctor.sh
+./doctor.sh            # report the tools
+./doctor.sh --install  # install the missing tools it can
+```
+
+#### Manual
+
+Install the tools yourself:
+
+- [Install Terraform](https://developer.hashicorp.com/terraform/install) 1.10 or later, to run the `terraform` [commands](#commands).
+- [Install Python](https://www.python.org/downloads/) 3.10 or later and the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) v2 on `PATH`. The apply runs helper scripts through Terraform `local-exec` provisioners to render the assets tree and to start and poll the CodeBuild image build, which calls the AWS CLI.
+
+### Configure credentials
+
+After you install the required tools, configure credentials as follows:
+
+- [Sign in](https://account.mongodb.com/account/login) to or [create](https://account.mongodb.com/account/register) your MongoDB Atlas Account.
+- Configure your [authentication](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs#authentication) method. The module creates the Atlas project, so the credential needs access to your Atlas organization.
+
+  **NOTE**: Service Accounts (SA) are the preferred authentication method. See [Grant Programmatic Access to an Organization](https://www.mongodb.com/docs/atlas/configure-api-access/#grant-programmatic-access-to-an-organization) in the MongoDB Atlas documentation for detailed instructions on configuring SA access to your project.
+
+- Configure your AWS credentials for the account and region you deploy into.
 
 ## Code snippet
 
