@@ -154,20 +154,18 @@ Set `features.debug_access_for_cluster = true` to add the caller IP to the proje
 
 ### Why does a small input change replace the app secret and the ECS task definition?
 
-The app secret and the ECS task definition both embed `MONGODB_URI`, which the module builds from the cluster's `connection_strings` attribute. While a change to the cluster is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Both `secret_string` and `container_definitions` force replacement, so the plan replaces the secret version and registers a new task definition.
+The `MONGODB_URI` is embedded in both the app secret and the ECS task definition, and the module builds it from the cluster's `connection_strings` attribute. While a cluster change is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Because `secret_string` and `container_definitions` force replacement, the plan replaces the secret version and registers a new task definition even though the rendered `MONGODB_URI` comes out identical. The app does not change; the cost is one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait.
 
-The values come out identical, so the app does not change. The cost is one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait. A cluster resize or a version change triggers the same plan; a tag change is simply the easiest one to trigger.
+This is not specific to tags: any pending cluster change, such as a resize or a version change, produces the same plan. A tag change is simply the easiest one to run into.
 
-A production deployment splits the two stacks. The cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply, which is what lets one small input change ripple into the app.
-
-To keep the single apply and still avoid the ripple, stage it. Apply the resources whose computed attributes other resources read, then apply the rest:
+A production deployment avoids the ripple by splitting the two stacks: the cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply. To keep the single apply and skip the ripple, stage it. Apply the cluster first, then the rest:
 
 ```sh
-terraform apply -target='module.chatbot.module.atlas_cluster' -target='module.chatbot.aws_s3_bucket.source'
+terraform apply -target='module.chatbot.module.atlas_cluster'
 terraform apply
 ```
 
-The cluster is the source for `MONGODB_URI`. The source bucket is in the list for a second reason: the CodeBuild policy document reads the bucket ARN, so the bucket's pending tag update defers that document and forces the IAM propagation wait to re-run. With both settled, the second apply reads known values and leaves the secret, the task definition, and the wait alone. The pattern fits any change where one resource's computed output feeds another resource's replace-only attribute.
+With the cluster settled, the second apply reads `connection_strings` as known and leaves the secret, the task definition, and the wait alone. The source bucket is another case of the same pattern: the CodeBuild policy document reads the bucket ARN, so a pending bucket change defers that document and re-runs the IAM propagation wait.
 
 Keep the following in mind when you use `-target`:
 
