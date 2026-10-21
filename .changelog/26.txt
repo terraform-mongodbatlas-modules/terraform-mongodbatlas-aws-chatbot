@@ -1,0 +1,15 @@
+```release-note:enhancement
+module: Answers only from the retrieved context in the bundled chatbot app and declines when the context is insufficient
+```
+
+```release-note:bug
+module: Renders retrieved chunk previews in a code fence so fenced blocks and image references no longer break the chat app output
+```
+
+```release-note:enhancement
+module: Shows each retrieved chunk as its own collapsed step in the chat app, so a viewer opens only the chunk they need
+```
+
+```release-note:note
+module: Documents why a small input change replaces the app secret version and the ECS task definition
+```
