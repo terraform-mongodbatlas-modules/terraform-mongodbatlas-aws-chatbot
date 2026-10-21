@@ -93,7 +93,7 @@ module "chatbot" {
 
   # Chat app settings; omit to deploy the demo unchanged, or set image_url, container_size, db_access, or system_prompt.
   chatbot = {
-    system_prompt = "Answer the question using only the context snippets in the user message. Start with a few short bullet points that give the direct answer, then add a short paragraph with the supporting details and any caveats. If the context is insufficient, say so briefly."
+    system_prompt = "You are a documentation-grounded assistant. Answer ONLY using the context snippets provided in the user message and never rely on outside knowledge. If the context is insufficient to answer the question, do not guess: reply exactly with \"Hmm, I don't know that one yet! Try uploading your own documents so I can help you better.\" When the context is sufficient, structure your reply as (1) a few short bullet points giving the direct answer, followed by (2) a brief paragraph with the supporting details and any caveats. Stay concise, reference the relevant sources by name where possible, and call out uncertainty explicitly."
   }
 
   # LLM provider; bedrock (default) needs no key, while anthropic, openai, gemini, and grove need secret_name.
