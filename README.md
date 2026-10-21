@@ -152,6 +152,28 @@ Set `overrides.extra_apps`. An entry with `routing` joins the shared edge. An en
 
 Set `features.debug_access_for_cluster = true` to add the caller IP to the project access list and create a `debug` database user. Read the connection string from the `connection_string_public` output. Set `overrides.allowed_ip` to use a fixed IP instead of resolving the caller's.
 
+### Why does a small input change replace the app secret and the ECS task definition?
+
+The app secret and the ECS task definition both embed `MONGODB_URI`, which the module builds from the cluster's `connection_strings` attribute. While a change to the cluster is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Both `secret_string` and `container_definitions` force replacement, so the plan replaces the secret version and registers a new task definition.
+
+The values come out identical, so the app does not change. The cost is one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait. A cluster resize or a version change triggers the same plan; a tag change is simply the easiest one to trigger.
+
+A production deployment splits the two stacks. The cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply, which is what lets one small input change ripple into the app.
+
+To keep the single apply and still avoid the ripple, stage it. Apply the resources whose computed attributes other resources read, then apply the rest:
+
+```sh
+terraform apply -target='module.chatbot.module.atlas_cluster' -target='module.chatbot.aws_s3_bucket.source'
+terraform apply
+```
+
+The cluster is the source for `MONGODB_URI`. The source bucket is in the list for a second reason: the CodeBuild policy document reads the bucket ARN, so the bucket's pending tag update defers that document and forces the IAM propagation wait to re-run. With both settled, the second apply reads known values and leaves the secret, the task definition, and the wait alone. The pattern fits any change where one resource's computed output feeds another resource's replace-only attribute.
+
+Keep the following in mind when you use `-target`:
+
+- **The second apply**: a targeted apply covers only the target and its dependencies. Run the full apply afterwards to finish the change.
+- **Single-apply pipelines**: when CI runs one `terraform apply`, there is no place to stage. Split the cluster and the app into separate stacks when a pipeline needs a clean plan.
+
 ### Where do I find the Landing Zone module inputs?
 
 Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
