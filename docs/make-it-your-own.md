@@ -25,8 +25,9 @@ Apply with `features.debug_access_for_cluster = true`, then run `just dump-local
 
 ## Reach the internals
 
+- **`overrides.project_id`:** deploy into an existing Atlas project instead of creating one. The project module runs in reference mode: the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. The module still manages the project's access list for debug access.
 - **`overrides.byo_vpc`:** a per-region map that replaces the managed VPC. A BYO VPC that serves the HTTP edge must already have an internet gateway, because CloudFront reaches the load balancer through a VPC origin.
-- **`overrides.cluster`:** the cluster type, shard count, instance size, and the Automated Embedding model.
+- **`overrides.cluster`:** the cluster type, shard count, instance size, and the Automated Embedding model. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the cluster module's own and are documented in the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
 - **`overrides.domain`:** the custom-domain aliases and the ACM certificate.
 - **`overrides.allowed_ip`:** a fixed debug IP instead of resolving the caller's.
 - **`overrides.networking`:** the shared edge settings, for example `waf_disabled`.

@@ -80,6 +80,7 @@ After you install the required tools, configure credentials as follows:
 
 - An AWS account and credentials for the account you deploy into.
 - MongoDB Atlas credentials with access to your organization, because the module creates the project. See [Security and IAM](#security-and-iam).
+- To deploy into an existing Atlas project instead, set `overrides.project_id`. The module then does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. See [Make it your own](docs/make-it-your-own.md).
 
 ```sh
 terraform init
@@ -97,7 +98,7 @@ The demo signs in with a single shared username and password: `demo` and the `ch
 
 The three content inputs cover the common path: `queries` sets the starter questions, `document_dirs` sets the documents the app ingests, and `assets_dir` replaces the branding. Empty values keep the bundled demo content.
 
-The named internals and the bring-your-own mechanisms are reached through `overrides`: the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). The app container size is on the `chatbot` object: `chatbot.container_size`, `chatbot.task_cpu`, and `chatbot.task_memory`. See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
+The named internals and the bring-your-own mechanisms are reached through `overrides`: the project (`overrides.project_id`), the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). The app container size is on the `chatbot` object: `chatbot.container_size`, `chatbot.task_cpu`, and `chatbot.task_memory`. See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
 
 ## Architecture
 
@@ -462,8 +463,9 @@ The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by d
 
 - `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
 - `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
+- `project_id`: deploy into an existing Atlas project. The project module runs in reference mode: the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. The module still manages the project's `ip_access_list` for debug access.
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
-- `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
+- `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, and `advanced_configuration`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the cluster module's own and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
 - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
 - `networking`: the shared `main` edge every routing app uses.
 - `domain`: the custom-domain aliases and ACM certificate.
@@ -477,6 +479,8 @@ object({
   resource_prefix = optional(string)
 
   permissions_boundary = optional(string)
+
+  project_id = optional(string)
 
   byo_vpc = optional(map(object({
     vpc_id                  = string
@@ -496,6 +500,12 @@ object({
       min_instance_size = optional(string, "M30")
     }), {})
     autoembed_model = optional(string, "voyage-4-lite")
+
+    # Passthrough to the cluster module's `advanced_configuration`. `any` keeps the
+    # cluster module's own type as the source of truth, so a field the resolved
+    # cluster-module version adds works here without an aws-chatbot release. See
+    # https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest
+    advanced_configuration = optional(any, {})
   }), {})
 
   extra_apps = optional(map(object({

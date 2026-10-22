@@ -12,6 +12,8 @@ The captured least-privilege policy scopes each create and delete by tag, so it 
 
 The module creates the Atlas project, so the credential it uses needs access to your Atlas organization rather than to a single project. Use an Organization Owner, or a Service Account with the Organization Project Creator role. See [Grant Programmatic Access to an Organization](https://www.mongodb.com/docs/atlas/configure-api-access/#grant-programmatic-access-to-an-organization) in the Atlas documentation for the setup steps.
 
+With `overrides.project_id`, the module deploys into an existing project instead: it does not create the project and does not read the organization, so a project-scoped credential is enough.
+
 The credential is read from the standard `mongodbatlas` provider authentication environment variables or from your provider configuration. The module reads the organization ID from the credential, so there is no `atlas_org_id` input.
 
 ## Runtime identities
