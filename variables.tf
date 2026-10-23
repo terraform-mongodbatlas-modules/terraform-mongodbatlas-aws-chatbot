@@ -228,8 +228,9 @@ variable "overrides" {
 
     - `resource_prefix`: the prefix for every resource name the module creates; defaults to `app_name`. Set a distinct value so two deployments in the same AWS account and region do not collide.
     - `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
+    - `project_id`: deploy into an existing Atlas project. The project module runs in reference mode: the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. The module still manages the project's `ip_access_list` for debug access.
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
-    - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, and `autoembed_model`.
+    - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, and `advanced_configuration`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the same as the cluster module's and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
     - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
     - `networking`: the shared `main` edge every routing app uses.
     - `domain`: the custom-domain aliases and ACM certificate.
@@ -240,6 +241,8 @@ variable "overrides" {
     resource_prefix = optional(string)
 
     permissions_boundary = optional(string)
+
+    project_id = optional(string)
 
     byo_vpc = optional(map(object({
       vpc_id                  = string
@@ -259,6 +262,12 @@ variable "overrides" {
         min_instance_size = optional(string, "M30")
       }), {})
       autoembed_model = optional(string, "voyage-4-lite")
+
+      # Passthrough to the cluster module's `advanced_configuration`. `any` keeps the
+      # cluster module's own type as the source of truth, so a field the resolved
+      # cluster-module version adds works here without an aws-chatbot release. See
+      # https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest
+      advanced_configuration = optional(any, {})
     }), {})
 
     extra_apps = optional(map(object({
@@ -381,5 +390,13 @@ variable "overrides" {
       app.image_url != null || try(app.ecr, null) != false
     ])
     error_message = "overrides.extra_apps.*.ecr cannot be false when that app image is module-built; leave it null or true, or set image_url."
+  }
+
+  validation {
+    condition = var.overrides.project_id == null || try(
+      can(regex("^[a-f0-9]{24}$", var.overrides.project_id)),
+      false
+    )
+    error_message = "overrides.project_id must be a 24-character lowercase hexadecimal Atlas project ID."
   }
 }

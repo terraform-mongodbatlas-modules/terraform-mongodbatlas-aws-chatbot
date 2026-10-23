@@ -2,7 +2,11 @@
 # cluster, and database users. The published modules are composed here so the
 # wiring is readable.
 
-data "mongodbatlas_roles_org_id" "current" {}
+# Read only on the managed-project path; `overrides.project_id` skips it because a
+# BYO project often comes with a credential that cannot read the organization.
+data "mongodbatlas_roles_org_id" "current" {
+  count = var.overrides.project_id == null ? 1 : 0
+}
 
 # --- Debug access -------------------------------------------------------------
 # `features.debug_access_for_cluster` adds the caller IP to the project access
@@ -58,9 +62,13 @@ module "atlas_project" {
   source  = "terraform-mongodbatlas-modules/project/mongodbatlas"
   version = "~> 0.2"
 
-  org_id = local.atlas_org_id
-  name   = local.resource_prefix
-  tags   = local.tags
+  # Reference mode when `overrides.project_id` is set: the project module rejects
+  # `name`, `org_id`, and `tags` together with `project_id`. It still manages the
+  # debug `ip_access_list`.
+  project_id = var.overrides.project_id
+  org_id     = var.overrides.project_id == null ? local.atlas_org_id : null
+  name       = var.overrides.project_id == null ? local.resource_prefix : null
+  tags       = var.overrides.project_id == null ? local.tags : null
   ip_access_list = var.features.debug_access_for_cluster ? [
     {
       source  = local.debug_ip
@@ -113,6 +121,7 @@ module "atlas_cluster" {
   regions                     = local.cluster_regions
   instance_size               = local.cluster_instance_size
   auto_scaling                = local.cluster_auto_scaling
+  advanced_configuration      = local.cluster_advanced_configuration
   version_release_system      = "CONTINUOUS"
   encryption_at_rest_provider = module.atlas_aws.encryption_at_rest_provider
   tags                        = local.tags

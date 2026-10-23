@@ -19,8 +19,9 @@ locals {
   # names, or the same value to deliberately reuse names.
   resource_prefix = coalesce(var.overrides.resource_prefix, var.app_name)
 
-  # The org is read from the credential, so there is no `atlas_org_id` input.
-  atlas_org_id = data.mongodbatlas_roles_org_id.current.org_id
+  # The org is read from the credential, so there is no `atlas_org_id` input. It is
+  # read only on the managed-project path; `overrides.project_id` skips it.
+  atlas_org_id = try(data.mongodbatlas_roles_org_id.current[0].org_id, null)
 
   # --- Bundled corpus ---------------------------------------------------------
   # The corpus ships in the image and is what the deployed chatbot answers from.
@@ -327,6 +328,7 @@ locals {
     compute_min_instance_size = var.overrides.cluster.auto_scaling.min_instance_size
     disk_gb_enabled           = true
   }
+  cluster_advanced_configuration = var.overrides.cluster.advanced_configuration
 
   # --- Mongo connection strings -----------------------------------------------
   # The cluster's own `connection_strings` attribute omits the private-endpoint
