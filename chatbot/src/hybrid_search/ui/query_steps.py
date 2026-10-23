@@ -11,8 +11,9 @@ from hybrid_search.search_modes import SearchModes
 from hybrid_search.settings import HybridSearchSettings
 from hybrid_search.ui.query_logic import QueryResult, answer_or_format, retrieve
 from hybrid_search.ui.result_format import (
+    format_hit_body,
     format_location,
-    format_retrieval_body,
+    hit_label,
     retrieval_header,
 )
 
@@ -21,7 +22,9 @@ def _retrieval_status(search_result: SearchResult, modes: SearchModes) -> str:
     if not modes.vector:
         return "Keyword search (no query embedding)"
     header = retrieval_header(search_result.pipeline)
-    return f"{header} · {len(search_result.references)} hits"
+    count = len(search_result.references)
+    noun = "hit" if count == 1 else "hits"
+    return f"{header} · {count} {noun}"
 
 
 def _source_lines(references: list[dict[str, Any]]) -> list[str]:
@@ -39,14 +42,24 @@ def _source_lines(references: list[dict[str, Any]]) -> list[str]:
 
 
 def _answer_output(result: QueryResult) -> str:
+    lines = _source_lines(result.references)
+    if lines:
+        footer = "### Sources\n" + "\n".join(f"- {line}" for line in lines)
+    else:
+        footer = "### Sources\nNo sources retrieved"
     if result.answer:
-        lines = _source_lines(result.references)
-        if lines:
-            footer = "### Sources\n" + "\n".join(f"- {line}" for line in lines)
-        else:
-            footer = "### Sources\nNo sources retrieved"
         return f"{result.answer}\n\n{footer}"
-    return format_retrieval_body(result.references)
+    return footer
+
+
+async def _emit_hit_steps(references: list[dict[str, Any]]) -> None:
+    # One collapsed step per hit, so a viewer opens only the chunk they care about.
+    # type="tool" is what keeps the step visible: the app runs config ui.cot =
+    # "tool_call", and Chainlit only renders the header of tool steps in that mode.
+    for index, ref in enumerate(references, start=1):
+        async with cl.Step(name=hit_label(index, ref), type="tool") as hit_step:
+            hit_step.output = format_hit_body(ref)
+            await hit_step.update()
 
 
 async def run_query_with_steps(
@@ -64,11 +77,15 @@ async def run_query_with_steps(
                 settings=settings,
                 collection=collection,
             )
-            retrieve_step.output = _retrieval_status(search_result, modes)
+            # A step renders its nested steps before its own output, so the summary
+            # would sit below the hit steps if it were the output. Renaming the header
+            # puts it at the top of the section, where the summary belongs.
+            retrieve_step.name = _retrieval_status(search_result, modes)
             await retrieve_step.update()
+            await _emit_hit_steps(search_result.references)
 
         answer_type = "llm" if modes.llm and settings.enable_llm else "tool"
-        async with cl.Step(name="Answering", type=answer_type) as answer_step:
+        async with cl.Step(name="Answer", type=answer_type) as answer_step:
             result = await answer_or_format(
                 query,
                 search_result,

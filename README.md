@@ -176,6 +176,26 @@ Set `overrides.extra_apps`. An entry with `routing` joins the shared edge. An en
 
 Set `features.debug_access_for_cluster = true` to add the caller IP to the project access list and create a `debug` database user. Read the connection string from the `connection_string_public` output. Set `overrides.allowed_ip` to use a fixed IP instead of resolving the caller's.
 
+### Why does a small input change replace the app secret and the ECS task definition?
+
+The `MONGODB_URI` is embedded in both the app secret and the ECS task definition, and the module builds it from the cluster's `connection_strings` attribute. While a cluster change is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Because `secret_string` and `container_definitions` force replacement, the plan replaces the secret version and registers a new task definition even though the rendered `MONGODB_URI` comes out identical. The app does not change. This replacement costs one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait.
+
+This is not specific to tags: any pending cluster change, such as a resize or a version change, produces the same replacement plan. A tag change is simply the most common way to run into it.
+
+A production deployment avoids the ripple by splitting the two stacks: the cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply. To keep the single apply and skip the ripple, run the apply in stages. Target the cluster first, then apply the rest:
+
+```sh
+terraform apply -target='module.chatbot.module.atlas_cluster'
+terraform apply
+```
+
+With the cluster settled, the second apply reads `connection_strings` as known and leaves the secret, the task definition, and the wait alone. This pattern also applies to source buckets: the CodeBuild policy document reads the bucket ARN, so a pending bucket change defers that document and re-runs the IAM propagation wait.
+
+Keep the following in mind when you use `-target`:
+
+- **The second apply**: a targeted apply covers only the target and its dependencies. Run the full apply afterwards to finish the change.
+- **Single-apply pipelines**: when CI runs one `terraform apply`, there is no opportunity to stage. Split the cluster and the app into separate stacks when a pipeline needs a clean plan.
+
 ### Where do I find the Landing Zone module inputs?
 
 Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
@@ -367,7 +387,7 @@ The vendored chat app. Enabled by default; every field defaults to the demo.
 - `ecr`: null infers from the image source. Built apps keep a module-managed ECR repository; a pure `image_url` app skips it. Set true with `image_url` to keep the repository around during a rollback or cutover.
 - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
 - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
-- `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers with short bullet points first and a paragraph of details after.
+- `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers only from the retrieved context, declines when the context is insufficient, and leads with short bullet points followed by a paragraph of details.
 - `db_access`: the database and role the app authenticates as.
 - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
 - `internet_egress`: allow HTTPS egress from the app security group through NAT.

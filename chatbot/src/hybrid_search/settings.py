@@ -22,13 +22,19 @@ AUTOEMBED_CONTEXT_TOKENS = 32_000
 MIN_CHUNK_MAX_TOKENS = 40
 MAX_CHUNK_MAX_TOKENS = 1500
 
-# The app's answer shape: short bullet points first, then a paragraph of details.
-# Callers can override it through the RAG_SYSTEM_PROMPT env var.
+# The app's answer shape: grounded in the retrieved context, with short bullet
+# points first and a paragraph of details after. Callers can override it through
+# the RAG_SYSTEM_PROMPT env var.
 DEFAULT_RAG_SYSTEM_PROMPT = (
-    "Answer the question using only the context snippets in the user message. "
-    "Start with a few short bullet points that give the direct answer, then add a "
-    "short paragraph with the supporting details and any caveats. "
-    "If the context is insufficient, say so briefly."
+    "You are a documentation-grounded assistant. Answer ONLY using the context "
+    "snippets provided in the user message and never rely on outside knowledge. "
+    "If the context is insufficient to answer the question, do not guess: reply "
+    "exactly with \"Hmm, I don't know that one yet! Try uploading your own "
+    'documents so I can help you better." When the context is sufficient, '
+    "structure your reply as (1) a few short bullet points giving the direct "
+    "answer, followed by (2) a brief paragraph with the supporting details and "
+    "any caveats. Stay concise, reference the relevant sources by name where "
+    "possible, and call out uncertainty explicitly."
 )
 
 

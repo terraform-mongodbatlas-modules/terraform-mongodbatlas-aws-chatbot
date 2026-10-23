@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import pytest
+
 from hybrid_search.search import RetrievalPipeline
 from hybrid_search.ui.result_format import (
+    _fence_for,
+    format_hit_body,
     format_location,
-    format_retrieval_body,
-    format_retrieval_results,
+    hit_label,
     retrieval_header,
 )
 
@@ -16,56 +19,7 @@ def test_retrieval_header_fused():
 
 
 def test_retrieval_header_keyword_only():
-    header = retrieval_header(RetrievalPipeline.KEYWORD)
-    assert header == "Keyword search only"
-
-
-def test_format_retrieval_results_empty():
-    text = format_retrieval_results(
-        [],
-        pipeline=RetrievalPipeline.RANK_FUSION,
-    )
-    assert "Keyword + vector retrieval" in text
-    assert "No matching chunks found." in text
-    assert "### Sources\nNo sources retrieved" in text
-
-
-def test_format_retrieval_results_one_hit():
-    refs = [{"file_path": "docs/NIST.AI.100-1.pdf", "content": "AI RMF context", "score": 0.87}]
-    text = format_retrieval_results(
-        refs,
-        pipeline=RetrievalPipeline.KEYWORD,
-    )
-    assert "Keyword search only" in text
-    assert "**1 · NIST.AI.100-1.pdf** · 0.870" in text
-    assert "> AI RMF context" in text
-    assert "- NIST.AI.100-1.pdf" in text
-
-
-def test_format_retrieval_results_truncates_snippet():
-    refs = [{"file_path": "a.txt", "content": "x" * 250, "score": 1.0}]
-    text = format_retrieval_results(refs, pipeline=RetrievalPipeline.RANK_FUSION)
-    assert "…" in text
-    assert "x" * 201 not in text
-
-
-def test_format_retrieval_body_strips_markdown_noise():
-    refs = [
-        {
-            "file_path": "LLM08.md",
-            "content": "## Description\n\n9. Vector-store protection",
-            "score": 3.4,
-        }
-    ]
-    text = format_retrieval_body(refs)
-    assert "## Description" not in text
-    assert "> Description Vector-store protection" in text
-    assert "\n9. " not in text
-
-
-def test_format_retrieval_body_empty():
-    text = format_retrieval_body([])
-    assert "No matching chunks found." in text
+    assert retrieval_header(RetrievalPipeline.KEYWORD) == "Keyword search only"
 
 
 def test_format_location_page():
@@ -80,22 +34,79 @@ def test_format_location_none():
     assert format_location({}) == ""
 
 
-def test_format_hit_with_page_shows_location():
-    refs = [{"file_path": "docs/NIST.AI.100-1.pdf", "content": "ctx", "score": 0.9, "page": 12}]
-    text = format_retrieval_results(refs, pipeline=RetrievalPipeline.KEYWORD)
-    assert "**1 · NIST.AI.100-1.pdf · p. 12** · 0.900" in text
-    assert "- NIST.AI.100-1.pdf · p. 12" in text
+@pytest.mark.parametrize(
+    ("ref", "expected"),
+    [
+        (
+            {"file_path": "docs/NIST.AI.100-1.pdf", "score": 0.9, "page": 12},
+            "1 · NIST.AI.100-1.pdf · p. 12 · 0.900",
+        ),
+        (
+            {"file_path": "notes.md", "score": 0.5, "start_line": 40, "end_line": 58},
+            "1 · notes.md · lines 40-58 · 0.500",
+        ),
+        ({"file_path": "a.txt", "score": 0.5}, "1 · a.txt · 0.500"),
+        ({"score": 0.5}, "1 · unknown · 0.500"),
+    ],
+)
+def test_hit_label(ref, expected):
+    assert hit_label(1, ref) == expected
 
 
-def test_format_hit_with_line_range_shows_location():
-    refs = [
-        {"file_path": "notes.md", "content": "ctx", "score": 0.5, "start_line": 40, "end_line": 58}
-    ]
-    text = format_retrieval_results(refs, pipeline=RetrievalPipeline.KEYWORD)
-    assert "**1 · notes.md · lines 40-58** · 0.500" in text
+_FENCED_CHUNK = """```hcl
+queries = [
+  { label = "Why one database", message = "Why would an agent store retrieval and memory in the same database?" },
+]
+```"""
+
+_IMAGE_CHUNK = (
+    "![The aws-chatbot abstraction iceberg](images/iceberg.svg)\n\n"
+    "The iceberg counts the same deployment: one module call declares 90 managed resources."
+)
 
 
-def test_format_hit_without_location_shows_filename_alone():
-    refs = [{"file_path": "a.txt", "content": "ctx", "score": 0.5}]
-    text = format_retrieval_results(refs, pipeline=RetrievalPipeline.KEYWORD)
-    assert "**1 · a.txt** · 0.500" in text
+def test_format_hit_body_keeps_fenced_chunk_intact():
+    body = format_hit_body(
+        {"file_path": "make-it-your-own.md", "content": _FENCED_CHUNK, "score": 7.962}
+    )
+    assert "````\n```hcl\n" in body
+    assert "queries = [" in body
+    assert body.endswith("```\n````")
+
+
+def test_format_hit_body_keeps_image_reference_literal():
+    body = format_hit_body(
+        {"file_path": "architecture.md", "content": _IMAGE_CHUNK, "score": 4.526}
+    )
+    assert "```\n![The aws-chatbot abstraction iceberg](images/iceberg.svg)" in body
+
+
+def test_format_hit_body_keeps_markdown_verbatim():
+    body = format_hit_body({"content": "## Description\n\n9. Vector-store protection"})
+    assert "## Description" in body
+    assert "9. Vector-store protection" in body
+    assert "> " not in body
+
+
+def test_format_hit_body_keeps_full_content():
+    body = format_hit_body({"content": "x" * 250})
+    assert "x" * 250 in body
+    assert "…" not in body
+
+
+def test_format_hit_body_empty_content_shows_placeholder():
+    body = format_hit_body({"content": "   "})
+    assert "```\n(no preview)\n```" in body
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("plain prose", "```"),
+        ("```hcl\nx\n```", "````"),
+        ("`````\nx\n`````", "``````"),
+        ("````\n``````\n````", "```````"),
+    ],
+)
+def test_fence_for(content, expected):
+    assert _fence_for(content) == expected
