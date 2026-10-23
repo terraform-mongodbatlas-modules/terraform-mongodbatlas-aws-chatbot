@@ -145,7 +145,7 @@ jobs:
   # === OK_EDIT: path-sync job-snapshot-tests ===
   # === DO_NOT_EDIT: path-sync job-slack ===
   slack-notification:
-    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests]
+    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests, windows-init]
     if: ${{ github.event_name == 'schedule' && !cancelled() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions: {}
