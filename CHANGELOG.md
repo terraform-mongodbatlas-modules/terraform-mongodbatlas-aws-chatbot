@@ -13,6 +13,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 * module: Renders retrieved chunk previews in a code fence so fenced blocks and image references no longer break the chat app output ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
+* module: Shortens plan snapshot paths so Windows can clone the module without exceeding the path length limit ([#25](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/25))
 
 ## 0.1.0 (October 19, 2026)
 
