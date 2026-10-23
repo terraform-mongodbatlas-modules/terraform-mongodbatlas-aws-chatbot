@@ -250,7 +250,7 @@ dev-vars-org org_id:
     {{py}} dev.dev_vars org {{org_id}}
 # === OK_EDIT: path-sync dev-vars-org ===
 
-# Write tests/workspace_chatbot_examples/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
+# Write tests/ws_chatbot/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
 dev-vars-chatbot env="dev" owner="owner@example.com":
     {{py}} dev.dev_vars chatbot {{env}} {{owner}}
 # === DO_NOT_EDIT: path-sync regions ===
@@ -324,4 +324,4 @@ public-test *args:
     python3 {{justfile_directory()}}/scripts/health_poll.py "$@"
 
 plan-snapshot-test-chatbot *args:
-    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" "$@"
+    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/ws_chatbot/dev.tfvars" "$@"

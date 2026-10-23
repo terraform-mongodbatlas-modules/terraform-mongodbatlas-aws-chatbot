@@ -132,15 +132,15 @@ jobs:
       # leak the team email. The snapshot steps skip until a workspace lands, so
       # this job passes before the minimal example and its workspace are added.
       - name: Authenticate to AWS
-        if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
         uses: aws-actions/configure-aws-credentials@451ce2a72e8d729a59ebeaacab82dbce58e7af4c # v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+      - if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
         run: just dev-vars-chatbot
-      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
-        run: just plan-snapshot-test --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+      - if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
+        run: just plan-snapshot-test --var-file "$(pwd)/tests/ws_chatbot/dev.tfvars"
   # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
   # === OK_EDIT: path-sync job-snapshot-tests ===
   # === DO_NOT_EDIT: path-sync job-slack ===
