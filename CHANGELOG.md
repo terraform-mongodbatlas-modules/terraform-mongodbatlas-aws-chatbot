@@ -1,5 +1,19 @@
 ## (Unreleased)
 
+NOTES:
+
+* module: Documents why a small input change replaces the app secret version and the ECS task definition ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
+
+ENHANCEMENTS:
+
+* module: Adds `overrides.project_id` to deploy into an existing Atlas project and `overrides.cluster.advanced_configuration` to pass the cluster's advanced settings through ([#29](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/29))
+* module: Answers only from the retrieved context in the bundled chatbot app and declines when the context is insufficient ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
+* module: Shows each retrieved chunk as its own collapsed step in the chat app, so a viewer opens only the chunk they need ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
+
+BUG FIXES:
+
+* module: Renders retrieved chunk previews in a code fence so fenced blocks and image references no longer break the chat app output ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
+
 ## 0.1.0 (October 19, 2026)
 
 NOTES:
