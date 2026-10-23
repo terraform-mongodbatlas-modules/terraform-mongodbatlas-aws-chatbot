@@ -80,7 +80,7 @@ After you install the required tools, configure credentials as follows:
 
 - An AWS account and credentials for the account you deploy into.
 - MongoDB Atlas credentials with access to your organization, because the module creates the project. See [Security and IAM](#security-and-iam).
-- To deploy into an existing Atlas project instead, set `overrides.project_id`. The module then does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. See [Make it your own](docs/make-it-your-own.md).
+- To deploy into an existing Atlas project instead, set `overrides.project_id`. With `overrides.project_id` set, the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. See [Make it your own](docs/make-it-your-own.md).
 
 ```sh
 terraform init
@@ -465,7 +465,7 @@ The named internals, the bring-your-own mechanisms, and `extra_apps`. Empty by d
 - `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
 - `project_id`: deploy into an existing Atlas project. The project module runs in reference mode: the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. The module still manages the project's `ip_access_list` for debug access.
 - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
-- `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, and `advanced_configuration`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the cluster module's own and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
+- `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, and `advanced_configuration`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the same as the cluster module's and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
 - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
 - `networking`: the shared `main` edge every routing app uses.
 - `domain`: the custom-domain aliases and ACM certificate.
