@@ -132,20 +132,20 @@ jobs:
       # leak the team email. The snapshot steps skip until a workspace lands, so
       # this job passes before the minimal example and its workspace are added.
       - name: Authenticate to AWS
-        if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+        if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
         uses: aws-actions/configure-aws-credentials@451ce2a72e8d729a59ebeaacab82dbce58e7af4c # v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
+      - if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
         run: just dev-vars-chatbot
-      - if: ${{ hashFiles('tests/workspace_*/workspace_test_config.yaml') != '' }}
-        run: just plan-snapshot-test --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+      - if: ${{ hashFiles('tests/ws_*/workspace_test_config.yaml') != '' }}
+        run: just plan-snapshot-test --var-file "$(pwd)/tests/ws_chatbot/dev.tfvars"
   # === DO_NOT_EDIT: path-sync job-snapshot-tests ===
   # === OK_EDIT: path-sync job-snapshot-tests ===
   # === DO_NOT_EDIT: path-sync job-slack ===
   slack-notification:
-    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests]
+    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests, windows-init]
     if: ${{ github.event_name == 'schedule' && !cancelled() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions: {}
@@ -169,4 +169,20 @@ jobs:
               ]
             }
   # === OK_EDIT: path-sync job-slack ===
-
+  windows-init:
+    name: Windows Module Init
+    runs-on: windows-latest
+    # workaround until CLOUDP-466439
+    env:
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
+        with:
+          terraform_wrapper: false
+      - name: Terraform init
+        run: terraform init
+      - name: Terraform validate
+        run: terraform validate

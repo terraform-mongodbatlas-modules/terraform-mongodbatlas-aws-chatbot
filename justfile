@@ -110,8 +110,8 @@ gen-examples *args:
 gen-submodule-readme *args:
     {{py}} docs.submodule_readme {{args}}
 
-md-link tag_version *args:
-    {{py}} docs.md_link_absolute {{tag_version}} {{args}}
+md-registry-compat tag_version *args:
+    {{py}} docs.md_registry_compat {{tag_version}} {{args}}
 
 tf-registry-source:
     @{{py}} release.tf_registry_source
@@ -144,8 +144,8 @@ docs-release version:
     @echo "Submodule README.md updated successfully"
     just gen-readme
     @echo "Root README.md updated successfully"
-    just md-link {{version}}
-    @echo "Markdown links converted to absolute URLs"
+    just md-registry-compat {{version}}
+    @echo "Markdown converted for the Registry (absolute links, callout admonitions)"
     just fmt
 
 release-notes new_version old_version="":
@@ -250,7 +250,7 @@ dev-vars-org org_id:
     {{py}} dev.dev_vars org {{org_id}}
 # === OK_EDIT: path-sync dev-vars-org ===
 
-# Write tests/workspace_chatbot_examples/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
+# Write tests/ws_chatbot/dev.tfvars with the CI extra_tags (mongodb-env, mongodb-owner).
 dev-vars-chatbot env="dev" owner="owner@example.com":
     {{py}} dev.dev_vars chatbot {{env}} {{owner}}
 # === DO_NOT_EDIT: path-sync regions ===
@@ -324,4 +324,4 @@ public-test *args:
     python3 {{justfile_directory()}}/scripts/health_poll.py "$@"
 
 plan-snapshot-test-chatbot *args:
-    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/workspace_chatbot_examples/dev.tfvars" "$@"
+    just plan-snapshot-test --var-file "{{justfile_directory()}}/tests/ws_chatbot/dev.tfvars" "$@"

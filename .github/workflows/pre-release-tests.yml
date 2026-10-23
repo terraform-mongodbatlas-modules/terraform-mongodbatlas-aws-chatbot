@@ -98,7 +98,7 @@ jobs:
       - name: Apply examples
         env:
           INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
-        run: just apply-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+        run: just apply-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/ws_chatbot/dev.tfvars"
       # No separate smoke step: the example sets features.verify_deployment_ready,
       # so the apply itself polls /health until data_ingested and indexes_ready are
       # true. The app integration tier covers ingest, read, delete, and update
@@ -108,9 +108,9 @@ jobs:
         env:
           INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
       # === OK_EDIT: path-sync job-import-validate ===
-        run: just import-validate -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+        run: just import-validate -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/ws_chatbot/dev.tfvars"
       - name: Destroy examples
         if: always()
         env:
           INCLUDE_EXAMPLES: ${{ inputs.include_examples }}
-        run: just destroy-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/workspace_chatbot_examples/dev.tfvars"
+        run: just destroy-examples --auto-approve -e "$INCLUDE_EXAMPLES" --var-file "$(pwd)/tests/ws_chatbot/dev.tfvars"
