@@ -8,7 +8,7 @@ examples:
 
 var_groups:
   # CI tags the resources it creates. The pre-release workflow sets mongodb-env to
-  # the active Atlas environment (dev/qa) and mongodb-owner from the MONGODB_OWNER
+  # the active Atlas environment (dev/qa) and mongodb-owner from the MONGODB_TAG_OWNER
   # repository variable. code-health always uses dev with a placeholder owner, so
   # the committed plan snapshots do not leak the team email.
   tags:
