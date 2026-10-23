@@ -145,7 +145,7 @@ jobs:
   # === OK_EDIT: path-sync job-snapshot-tests ===
   # === DO_NOT_EDIT: path-sync job-slack ===
   slack-notification:
-    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests, windows-init]
+    needs: [check, py-tests, plan-tests, compat-tests, plan-snapshot-tests]
     if: ${{ github.event_name == 'schedule' && !cancelled() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions: {}
@@ -169,10 +169,14 @@ jobs:
               ]
             }
   # === OK_EDIT: path-sync job-slack ===
-  # === DO_NOT_EDIT: path-sync job-windows-init ===
   windows-init:
     name: Windows Module Init
     runs-on: windows-latest
+    # workaround until CLOUDP-466439
+    env:
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
@@ -182,5 +186,3 @@ jobs:
         run: terraform init
       - name: Terraform validate
         run: terraform validate
-  # === OK_EDIT: path-sync job-windows-init ===
-
