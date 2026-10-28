@@ -1,3 +1,7 @@
 ```release-note:enhancement
 module: Updates the Atlas module pins to v1
 ```
+
+```release-note:note
+provider/mongodbatlas: Requires minimum version 2.18.0
+```
