@@ -21,7 +21,6 @@ Run 'just gen-readme' to regenerate. -->
 - [Customize](#customize)
 - [Architecture](#architecture)
 - [Security and IAM](#security-and-iam)
-- [FAQ](#faq)
 - [Requirements](#requirements)
 - [Providers](#providers)
 - [Resources](#resources)
@@ -31,6 +30,7 @@ Run 'just gen-readme' to regenerate. -->
 - [Content Variables](#content-variables)
 - [Overrides](#overrides)
 - [Outputs](#outputs)
+- [FAQ](#faq)
 <!-- END_TOC -->
 
 <!-- BEGIN_TABLES -->
@@ -108,102 +108,6 @@ The module composes the published [Landing Zone modules](https://registry.terraf
 
 The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer-versus-runtime distinction, the Atlas credential requirement, and the roles the module creates, and [docs/deployer-permissions.md](docs/deployer-permissions.md) for the captured least-privilege deployer policy.
 
-## FAQ
-
-### What authentication does the demo use?
-
-A single shared username and password: `demo` and the `chatbot_login_password` output. The demo has no per-user accounts and no role model. A real application would put its own authentication and authorization in front of the app, for example an SSO provider, per-user accounts, and role-based access, and would not reuse the demo login.
-
-### How much does this cost?
-
-The stack bills to your AWS account and Atlas organization while it is up. The inputs that move the bill are:
-
-- `features.waf`: the AWS Managed Rules Common Rule Set on CloudFront.
-- `features.vpc_endpoints`: the interface VPC endpoints, billed per AZ-hour.
-- `features.internet_egress`: a NAT gateway, billed hourly plus data.
-- `features.atlas_byok`: a customer-managed KMS key.
-- `features.atlas_s3_log_export` and `features.atlas_s3_backup_export`: the export S3 buckets.
-- `overrides.cluster`: the cluster type, shard count, and instance size.
-- `overrides.extra_apps`: each app adds Fargate compute and an ECR repository.
-- `overrides.byo_vpc`: your own VPC resources, billed by your account.
-- `overrides.networking.main.waf_disabled`: skip the WAF on the edge.
-
-The Atlas cluster, the load balancer, CloudFront, ECS Fargate, ECR, and Secrets Manager bill by default. Run `terraform destroy` when you are done.
-
-### What is the file upload size limit?
-
-The upload picker accepts PDF, txt, and md files, up to 20 files and 100 MB per batch.
-
-### How does the LLM answer work?
-
-The default provider is Amazon Bedrock. The ECS task role calls `bedrock-runtime` over a private interface endpoint, so there is no API key and no manual approval step.
-
-For a keyed provider, run `just create-llm-secret` to write the API key to Secrets Manager, then set `llm.provider` and `llm.secret_name` to the printed name. The recipe supports Anthropic, OpenAI, Gemini, and Grove keys. Grove also needs `llm.base_url`. Run `just delete-llm-secret` to remove the secret.
-
-### How do I use a more advanced Bedrock model?
-
-Set `llm.model` to the model id. A newer Amazon model or an Anthropic Claude model needs the `us.` inference-profile prefix, and a Claude model needs a one-time use-case form in the Bedrock console for the account.
-
-### How does ingest and search work?
-
-The app extracts and chunks each document, upserts one document per chunk into `chunks`, and Atlas Automated Embedding embeds each chunk inside the cluster. A question runs `$rankFusion` over a text pipeline and a vector pipeline, and the LLM answers from the top-ranked chunks. See [docs/architecture.md](docs/architecture.md) for the flow.
-
-### Why does search fail with `localhost:28000`?
-
-`$rankFusion` runs `$search` on the cluster, and `mongod` connects to Atlas Search (`mongot`) at `127.0.0.1:28000` on the same node. A connection refused error means `mongot` is not listening. Confirm `chunks.text_idx` and `chunks.autoembed_idx` are `READY` in the index status, and recreate them if they were never created.
-
-### What is the app secret name?
-
-`<app_name>-app`. For the minimal example that is `mongodb-chatbot-demo-app`.
-
-### What region does this example use?
-
-`regions[0]` (default `us-east-1`). The app runs in the first region.
-
-### How do I use a custom domain?
-
-Set `overrides.domain.aliases` and `overrides.domain.acm_certificate_arn`. The certificate must be in `us-east-1`.
-
-### How do I use my own VPC?
-
-Set `overrides.byo_vpc` with one entry per region. CloudFront reaches the internal load balancer through a VPC origin, which requires an internet gateway in the VPC, so a BYO VPC that serves the HTTP edge must already have one.
-
-### How do I add another app or a private worker?
-
-Set `overrides.extra_apps`. An entry with `routing` joins the shared edge. An entry with no `routing` is a private worker with no HTTP edge.
-
-### How do I debug with mongosh?
-
-Set `features.debug_access_for_cluster = true` to add the caller IP to the project access list and create a `debug` database user. Read the connection string from the `connection_string_public` output. Set `overrides.allowed_ip` to use a fixed IP instead of resolving the caller's.
-
-### Why does a small input change replace the app secret and the ECS task definition?
-
-The `MONGODB_URI` is embedded in both the app secret and the ECS task definition, and the module builds it from the cluster's `connection_strings` attribute. While a cluster change is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Because `secret_string` and `container_definitions` force replacement, the plan replaces the secret version and registers a new task definition even though the rendered `MONGODB_URI` comes out identical. The app does not change. This replacement costs one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait.
-
-This is not specific to tags: any pending cluster change, such as a resize or a version change, produces the same replacement plan. A tag change is simply the most common way to run into it.
-
-A production deployment avoids the ripple by splitting the two stacks: the cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply. To keep the single apply and skip the ripple, run the apply in stages. Target the cluster first, then apply the rest:
-
-```sh
-terraform apply -target='module.chatbot.module.atlas_cluster'
-terraform apply
-```
-
-With the cluster settled, the second apply reads `connection_strings` as known and leaves the secret, the task definition, and the wait alone. This pattern also applies to source buckets: the CodeBuild policy document reads the bucket ARN, so a pending bucket change defers that document and re-runs the IAM propagation wait.
-
-Keep the following in mind when you use `-target`:
-
-- **The second apply**: a targeted apply covers only the target and its dependencies. Run the full apply afterwards to finish the change.
-- **Single-apply pipelines**: when CI runs one `terraform apply`, there is no opportunity to stage. Split the cluster and the app into separate stacks when a pipeline needs a clean plan.
-
-### Where do I find the Landing Zone module inputs?
-
-Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
-
-### How is this different from the examples in atlas-examples?
-
-The [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples) repository holds reference configurations for the Landing Zone modules, one per module to copy and customize. This repository goes further: it is one module and one `terraform apply` that deploys a working application end to end, including the app image build and the running service. Use atlas-examples when you want the reusable modules; use this repository when you want the chatbot demo running.
-
 <!-- BEGIN_TF_DOCS -->
 <!-- @generated
 WARNING: This section is auto-generated by terraform-docs. Do not edit directly.
@@ -222,7 +126,7 @@ The following requirements are needed by this module:
 
 - <a name="requirement_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
 
-- <a name="requirement_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
+- <a name="requirement_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.18)
 
 - <a name="requirement_random"></a> [random](https://registry.terraform.io/providers/hashicorp/random/latest/docs) (~> 3.6)
 
@@ -238,7 +142,7 @@ The following providers are used by this module:
 
 - <a name="provider_http"></a> [http](https://registry.terraform.io/providers/hashicorp/http/latest/docs) (~> 3.4)
 
-- <a name="provider_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.16)
+- <a name="provider_mongodbatlas"></a> [mongodbatlas](https://registry.terraform.io/providers/mongodb/mongodbatlas/latest/docs) (~> 2.18)
 
 - <a name="provider_random"></a> [random](https://registry.terraform.io/providers/hashicorp/random/latest/docs) (~> 3.6)
 
@@ -596,3 +500,99 @@ Description: Per-app path, image, secret, database access, region, IAM task role
 
 Description: CloudFront HTTPS URL for the HTTP edge. Null when no app routes.
 <!-- END_TF_DOCS -->
+
+## FAQ
+
+### What authentication does the demo use?
+
+A single shared username and password: `demo` and the `chatbot_login_password` output. The demo has no per-user accounts and no role model. A real application would put its own authentication and authorization in front of the app, for example an SSO provider, per-user accounts, and role-based access, and would not reuse the demo login.
+
+### How much does this cost?
+
+The stack bills to your AWS account and Atlas organization while it is up. The inputs that move the bill are:
+
+- `features.waf`: the AWS Managed Rules Common Rule Set on CloudFront.
+- `features.vpc_endpoints`: the interface VPC endpoints, billed per AZ-hour.
+- `features.internet_egress`: a NAT gateway, billed hourly plus data.
+- `features.atlas_byok`: a customer-managed KMS key.
+- `features.atlas_s3_log_export` and `features.atlas_s3_backup_export`: the export S3 buckets.
+- `overrides.cluster`: the cluster type, shard count, and instance size.
+- `overrides.extra_apps`: each app adds Fargate compute and an ECR repository.
+- `overrides.byo_vpc`: your own VPC resources, billed by your account.
+- `overrides.networking.main.waf_disabled`: skip the WAF on the edge.
+
+The Atlas cluster, the load balancer, CloudFront, ECS Fargate, ECR, and Secrets Manager bill by default. Run `terraform destroy` when you are done.
+
+### What is the file upload size limit?
+
+The upload picker accepts PDF, txt, and md files, up to 20 files and 100 MB per batch.
+
+### How does the LLM answer work?
+
+The default provider is Amazon Bedrock. The ECS task role calls `bedrock-runtime` over a private interface endpoint, so there is no API key and no manual approval step.
+
+For a keyed provider, run `just create-llm-secret` to write the API key to Secrets Manager, then set `llm.provider` and `llm.secret_name` to the printed name. The recipe supports Anthropic, OpenAI, Gemini, and Grove keys. Grove also needs `llm.base_url`. Run `just delete-llm-secret` to remove the secret.
+
+### How do I use a more advanced Bedrock model?
+
+Set `llm.model` to the model id. A newer Amazon model or an Anthropic Claude model needs the `us.` inference-profile prefix, and a Claude model needs a one-time use-case form in the Bedrock console for the account.
+
+### How does ingest and search work?
+
+The app extracts and chunks each document, upserts one document per chunk into `chunks`, and Atlas Automated Embedding embeds each chunk inside the cluster. A question runs `$rankFusion` over a text pipeline and a vector pipeline, and the LLM answers from the top-ranked chunks. See [docs/architecture.md](docs/architecture.md) for the flow.
+
+### Why does search fail with `localhost:28000`?
+
+`$rankFusion` runs `$search` on the cluster, and `mongod` connects to Atlas Search (`mongot`) at `127.0.0.1:28000` on the same node. A connection refused error means `mongot` is not listening. Confirm `chunks.text_idx` and `chunks.autoembed_idx` are `READY` in the index status, and recreate them if they were never created.
+
+### What is the app secret name?
+
+`<app_name>-app`. For the minimal example that is `mongodb-chatbot-demo-app`.
+
+### What region does this example use?
+
+`regions[0]` (default `us-east-1`). The app runs in the first region.
+
+### How do I use a custom domain?
+
+Set `overrides.domain.aliases` and `overrides.domain.acm_certificate_arn`. The certificate must be in `us-east-1`.
+
+### How do I use my own VPC?
+
+Set `overrides.byo_vpc` with one entry per region. CloudFront reaches the internal load balancer through a VPC origin, which requires an internet gateway in the VPC, so a BYO VPC that serves the HTTP edge must already have one.
+
+### How do I add another app or a private worker?
+
+Set `overrides.extra_apps`. An entry with `routing` joins the shared edge. An entry with no `routing` is a private worker with no HTTP edge.
+
+### How do I debug with mongosh?
+
+Set `features.debug_access_for_cluster = true` to add the caller IP to the project access list and create a `debug` database user. Read the connection string from the `connection_string_public` output. Set `overrides.allowed_ip` to use a fixed IP instead of resolving the caller's.
+
+### Why does a small input change replace the app secret and the ECS task definition?
+
+The `MONGODB_URI` is embedded in both the app secret and the ECS task definition, and the module builds it from the cluster's `connection_strings` attribute. While a cluster change is pending, the provider reports `connection_strings` as known only after apply, so Terraform cannot prove the value matches the one in state. Because `secret_string` and `container_definitions` force replacement, the plan replaces the secret version and registers a new task definition even though the rendered `MONGODB_URI` comes out identical. The app does not change. This replacement costs one secret version, one task definition revision, an ECS redeploy, and a fresh IAM propagation wait.
+
+This is not specific to tags: any pending cluster change, such as a resize or a version change, produces the same replacement plan. A tag change is simply the most common way to run into it.
+
+A production deployment avoids the ripple by splitting the two stacks: the cluster stack owns the connection string and the app stack reads it, so the app stack never has a pending cluster change. This repository deploys both from a single apply. To keep the single apply and skip the ripple, run the apply in stages. Target the cluster first, then apply the rest:
+
+```sh
+terraform apply -target='module.chatbot.module.atlas_cluster'
+terraform apply
+```
+
+With the cluster settled, the second apply reads `connection_strings` as known and leaves the secret, the task definition, and the wait alone. This pattern also applies to source buckets: the CodeBuild policy document reads the bucket ARN, so a pending bucket change defers that document and re-runs the IAM propagation wait.
+
+Keep the following in mind when you use `-target`:
+
+- **The second apply**: a targeted apply covers only the target and its dependencies. Run the full apply afterwards to finish the change.
+- **Single-apply pipelines**: when CI runs one `terraform apply`, there is no opportunity to stage. Split the cluster and the app into separate stacks when a pipeline needs a clean plan.
+
+### Where do I find the Landing Zone module inputs?
+
+Full schemas live in the published modules: [project](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/project/mongodbatlas/latest), [cluster](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest), and [atlas-aws](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/atlas-aws/mongodbatlas/latest).
+
+### How is this different from the examples in atlas-examples?
+
+The [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples) repository holds reference configurations for the Landing Zone modules, one per module to copy and customize. This repository goes further: it is one module and one `terraform apply` that deploys a working application end to end, including the app image build and the running service. Use atlas-examples when you want the reusable modules; use this repository when you want the chatbot demo running.

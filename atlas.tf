@@ -60,7 +60,7 @@ resource "mongodbatlas_database_user" "public_debug" {
 
 module "atlas_project" {
   source  = "terraform-mongodbatlas-modules/project/mongodbatlas"
-  version = "~> 0.2"
+  version = "~> 1.0"
 
   # Reference mode when `overrides.project_id` is set: the project module rejects
   # `name`, `org_id`, and `tags` together with `project_id`. It still manages the
@@ -79,7 +79,7 @@ module "atlas_project" {
 
 module "atlas_aws" {
   source  = "terraform-mongodbatlas-modules/atlas-aws/mongodbatlas"
-  version = "~> 0.4"
+  version = "~> 1.0"
 
   project_id = module.atlas_project.id
 
@@ -110,7 +110,7 @@ module "atlas_aws" {
 
 module "atlas_cluster" {
   source  = "terraform-mongodbatlas-modules/cluster/mongodbatlas"
-  version = "~> 0.4"
+  version = "~> 1.0"
 
   project_id    = module.atlas_project.id
   name          = local.resource_prefix
