@@ -81,6 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # The lanes share one Atlas project, so run them one at a time to stay
+      # under the per-project API rate limit.
+      max-parallel: 1
       matrix:
         include:
           - lane: minimum
@@ -169,6 +172,20 @@ jobs:
               ]
             }
   # === OK_EDIT: path-sync job-slack ===
+  # === DO_NOT_EDIT: path-sync job-windows-init ===
+  windows-init:
+    name: Windows Module Init
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
+        with:
+          terraform_wrapper: false
+      - name: Terraform init
+        run: terraform init
+      - name: Terraform validate
+        run: terraform validate
+  # === OK_EDIT: path-sync job-windows-init ===
   windows-init:
     name: Windows Module Init
     runs-on: windows-latest
