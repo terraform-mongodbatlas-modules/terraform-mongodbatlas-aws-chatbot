@@ -1,0 +1,3 @@
+```release-note:enhancement
+module: Updates the Atlas module pins to v1
+```
