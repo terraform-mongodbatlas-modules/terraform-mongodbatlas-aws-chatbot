@@ -42,4 +42,5 @@ output "resource_ids" {
     atlas_aws_role_id      = module.atlas_aws.role_id
     atlas_aws_iam_role_arn = module.atlas_aws.resource_ids.iam_role_arn
   }
+  depends_on = [module.atlas_cluster]
 }
