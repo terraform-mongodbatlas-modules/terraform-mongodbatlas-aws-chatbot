@@ -502,7 +502,7 @@ Description: CloudFront HTTPS URL for the HTTP edge. Null when no app routes.
 
 ### <a name="output_resource_ids"></a> [resource\_ids](#output\_resource\_ids)
 
-Description: Deployment-level resource IDs a caller would otherwise fetch with a data source: the Atlas project and cluster, the per-region app security group, VPC, private subnets, and the shared Atlas-AWS integration role. The role id and ARN are null unless a feature that needs cloud provider access (BYOK, S3 log export, or S3 backup export) is enabled.
+Description: Deployment-level resource IDs: the Atlas project and cluster, the per-region app security group, VPC, private subnets, and the shared Atlas-AWS integration role. The role id and ARN are null unless a feature that needs cloud provider access (BYOK, S3 log export, or S3 backup export) is enabled.
 <!-- END_TF_DOCS -->
 
 ## FAQ
