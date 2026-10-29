@@ -1,0 +1,16 @@
+# Branding overlay for the healthcare example: the module copies this over the rendered
+# `assets/` tree, so only the [UI] title and description change and everything else
+# (theme, logos, chainlit.md) stays the vendored default.
+[UI]
+name = "Springfield Health"
+description = "Ask about your family's health plan, using Atlas hybrid search."
+language = "en-US"
+cot = "tool_call"
+custom_css = "/public/theme.css"
+custom_js = "/public/command-buttons.js"
+
+[features.spontaneous_file_upload]
+enabled = false
+
+[meta]
+generated_by = "2.11.1"

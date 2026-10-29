@@ -34,9 +34,13 @@ module "chatbot" {
   document_dirs  = ["${path.module}/docs"]
   skip_repo_docs = true
 
+  # Brands the chat UI. assets/ overlays the rendered assets tree, so `.chainlit/config.toml`
+  # sets the page title and description and everything else keeps the module default.
+  assets_dir = "${path.module}/assets"
+
   # Every other input keeps its default: `features` for the opt-in WAF, VPC endpoints, encryption,
   # log and backup export, debug access, and readiness polling; `llm` for a keyed provider instead
-  # of Bedrock; and `regions`, `assets_dir`, `overrides`, and `extra_tags` when you need them.
+  # of Bedrock; and `regions`, `overrides`, and `extra_tags` when you need them.
 }
 
 output "https_url" {
