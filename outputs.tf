@@ -32,7 +32,7 @@ output "connection_string_public" {
 }
 
 output "resource_ids" {
-  description = "Deployment-level resource IDs a caller would otherwise fetch with a data source: the Atlas project and cluster, the per-region app security group, VPC, and private subnets, and the shared Atlas-AWS integration role. The role id and ARN are null unless a feature that needs cloud provider access (BYOK, S3 log export, or S3 backup export) is enabled."
+  description = "Deployment-level resource IDs a caller would otherwise fetch with a data source: the Atlas project and cluster, the per-region app security group, VPC, private subnets, and the shared Atlas-AWS integration role. The role id and ARN are null unless a feature that needs cloud provider access (BYOK, S3 log export, or S3 backup export) is enabled."
   value = {
     project_id             = module.atlas_project.id
     cluster_name           = local.resource_prefix

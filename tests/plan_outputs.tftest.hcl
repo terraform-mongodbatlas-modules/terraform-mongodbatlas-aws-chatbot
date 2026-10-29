@@ -228,3 +228,15 @@ run "byo_project_id_is_surfaced_not_looked_up" {
     error_message = "resource_ids.project_id should surface overrides.project_id instead of looking it up"
   }
 }
+
+run "role_ids_are_null_without_cloud_provider_access_features" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      output.resource_ids.atlas_aws_role_id == null,
+      output.resource_ids.atlas_aws_iam_role_arn == null,
+    ])
+    error_message = "resource_ids role id and ARN should be null when no feature that needs cloud provider access is enabled"
+  }
+}
