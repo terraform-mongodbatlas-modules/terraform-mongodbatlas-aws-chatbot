@@ -1,0 +1,10 @@
+# UI chips, in display order. The example's main.tf loads this file with yamldecode(); each entry needs label and message.
+# More prompts to type during the demo are in README.md.
+- label: Marge
+  message: What do I need to book for my own care before the end of the year?
+- label: Bart
+  message: Is anything going to interrupt Bart's growth hormone shots?
+- label: Lisa
+  message: Where are we with Lisa's psoriasis treatment, and what do I still need to do?
+- label: Maggie
+  message: What vaccines does Maggie need before kindergarten, and are they covered?
