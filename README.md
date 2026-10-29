@@ -43,6 +43,7 @@ Run 'just gen-readme' to regenerate. -->
 Feature | Name | Description
 --- | --- | ---
 Chatbot | [Minimal deployment](./examples/minimal) | Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
+Chatbot | [Healthcare corpus](./examples/healthcare) | Deploys the chatbot with a fictional healthcare corpus, showing how to name your own documents with `document_dirs` instead of the bundled repository docs.
 
 <!-- END_TABLES -->
 

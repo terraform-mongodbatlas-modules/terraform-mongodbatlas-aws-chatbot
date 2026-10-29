@@ -1,8 +1,8 @@
 examples_readme:
   readme_template: docs/example_readme.md
-  # minimal is a single copy-paste main.tf with no generated versions.tf, so the
-  # generator leaves it alone and the README is hand-written.
-  skip_examples: ["minimal"]
+  # minimal and healthcare are single copy-paste main.tf files with no generated
+  # versions.tf, so the generator leaves them alone and their READMEs are hand-written.
+  skip_examples: ["minimal", "healthcare"]
   code_snippet_files:
     additional: []
   template_vars:
@@ -27,3 +27,10 @@ tables:
         description: >-
           Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one
           `terraform apply`.
+      - folder_name: healthcare
+        feature: Chatbot
+        name: Healthcare corpus
+        description: >-
+          Deploys the chatbot with a fictional healthcare corpus, showing how to
+          name your own documents with `document_dirs` instead of the bundled
+          repository docs.
