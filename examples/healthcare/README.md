@@ -8,7 +8,7 @@ of the bundled repository docs. The example shows how to name your own documents
 
 The apply creates the same stack as the [minimal example](../minimal): an Atlas project and a sharded
 cluster, the ECS app behind an Application Load Balancer and CloudFront, the app image built by
-CodeBuild, and the demo login secret. This example changes only the chatbot content.
+CodeBuild, and the demo login secret. This example changes the chatbot content and the UI branding.
 
 ## Bring your own documents
 
