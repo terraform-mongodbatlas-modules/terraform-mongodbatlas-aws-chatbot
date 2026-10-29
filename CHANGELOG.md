@@ -7,6 +7,7 @@ NOTES:
 
 ENHANCEMENTS:
 
+* example: Adds a healthcare corpus example that replaces the bundled docs with `document_dirs` ([#38](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/38))
 * module: Adds `overrides.project_id` to deploy into an existing Atlas project and `overrides.cluster.advanced_configuration` to pass the cluster's advanced settings through ([#29](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/29))
 * module: Adds a grouped `resource_ids` output with the Atlas project, cluster, per-region app security group, VPC, and private subnets, and the shared Atlas-AWS integration role ([#36](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/36))
 * module: Answers only from the retrieved context in the bundled chatbot app and declines when the context is insufficient ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
