@@ -1,8 +1,8 @@
 # Deployer permissions
 
-The [Security and IAM](security-and-iam.md) guide separates the deployer identity from the runtime roles the module creates. This guide gives the deployer identity a least-privilege policy built from the actions the module actually calls.
+The [Security and IAM](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/security-and-iam.md) guide separates the deployer identity from the runtime roles the module creates. This guide gives the deployer identity a least-privilege policy built from the actions the module actually calls.
 
-Two bundles follow. The minimal example bundle covers the [minimal example](../examples/minimal). The full bundle covers every feature. Both are parameterized by two values:
+Two bundles follow. The minimal example bundle covers the [minimal example](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal). The full bundle covers every feature. Both are parameterized by two values:
 
 - **`{aws_account_id}`**: your AWS account ID.
 - **`{resource_prefix}`**: the prefix for every resource name the module creates. It defaults to `app_name`.
@@ -23,7 +23,7 @@ A small set of actions cannot use either condition, because AWS authorizes them 
 
 ## Minimal example policy
 
-This is the policy for the [minimal example](../examples/minimal): WAF, interface VPC endpoints, and the deployment-ready check on, and BYOK, internet egress, log and backup export, and debug access off. It drops the whole KMS service and the NAT and EIP EC2 actions from the full bundle. Every other statement is shared.
+This is the policy for the [minimal example](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal): WAF, interface VPC endpoints, and the deployment-ready check on, and BYOK, internet egress, log and backup export, and debug access off. It drops the whole KMS service and the NAT and EIP EC2 actions from the full bundle. Every other statement is shared.
 
 The policy requires the boundary. Set `overrides.permissions_boundary` as shown in [Close the IAM escalation](#close-the-iam-escalation), or the deployer's `iam:CreateRole` condition denies the role creates.
 

@@ -3,10 +3,9 @@
 Deploy the hybrid search chatbot on AWS with MongoDB Atlas, with a fictional healthcare corpus instead
 of the bundled repository docs. The example shows how to name your own documents with `document_dirs`.
 
-> [!NOTE]
-> This example deploys the demo chatbot. It is not supported for production use. See the [module README](../../README.md) for the stability disclaimer.
+-> **NOTE:** This example deploys the demo chatbot. It is not supported for production use. See the [module README](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/README.md) for the stability disclaimer.
 
-The apply creates the same stack as the [minimal example](../minimal): an Atlas project and a sharded
+The apply creates the same stack as the [minimal example](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal): an Atlas project and a sharded
 cluster, the ECS app behind an Application Load Balancer and CloudFront, the app image built by
 CodeBuild, and the demo login secret. This example changes the chatbot content and the UI branding.
 
@@ -67,7 +66,7 @@ corpus beyond the chips:
 
 ## Prerequisites
 
-See the [minimal example](../minimal#prerequisites) for the tools, credentials, and the automatic
+See the [minimal example](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal#prerequisites) for the tools, credentials, and the automatic
 install workflow. This example needs the same ones.
 
 ## Commands

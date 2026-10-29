@@ -2,8 +2,7 @@
 
 Deploy the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
 
-> [!NOTE]
-> This example deploys the demo chatbot. It is not supported for production use. See the [module README](../../README.md) for the stability disclaimer.
+-> **NOTE:** This example deploys the demo chatbot. It is not supported for production use. See the [module README](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/README.md) for the stability disclaimer.
 
 The apply creates the following:
 
@@ -184,7 +183,7 @@ The demo uses a single shared login. A real application would use its own authen
 
 ## Customize
 
-This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](../../README.md). The named internals are reached through `overrides`: your own VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), a custom domain (`overrides.domain`), a fixed debug IP (`overrides.allowed_ip`), and extra apps (`overrides.extra_apps`).
+This example sets the common inputs. For the full input reference, including `regions`, `assets_dir`, `document_dirs`, and `overrides`, see the [module README](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/README.md). The named internals are reached through `overrides`: your own VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), a custom domain (`overrides.domain`), a fixed debug IP (`overrides.allowed_ip`), and extra apps (`overrides.extra_apps`).
 
 ## Tear down
 
