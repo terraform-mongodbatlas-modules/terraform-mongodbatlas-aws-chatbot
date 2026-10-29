@@ -2,7 +2,8 @@
 
 This repository holds an example pattern module that deploys a demo hybrid search chatbot on AWS with MongoDB Atlas. The database runs in Atlas, and the application stack deploys into your own AWS account and bills to it.
 
-~> **IMPORTANT:** This module is a demo of a production-shaped deployment, not a supported product. It carries no stability guarantee, and the repository might be archived if adoption does not materialize. It is a starting point to fork and evaluate; do not run it as-is for production workloads.
+> [!IMPORTANT]
+> This module is a demo of a production-shaped deployment, not a supported product. It carries no stability guarantee, and the repository might be archived if adoption does not materialize. It is a starting point to fork and evaluate; do not run it as-is for production workloads.
 
 The module is built on the published MongoDB Atlas Landing Zone modules with a production-grade architecture: Atlas over PrivateLink, a private ECS Fargate service with no public IP, and CloudFront with WAF at the edge. To reuse the Landing Zone modules in your own stack, start from [atlas-examples](https://github.com/terraform-mongodbatlas-modules/atlas-examples).
 
@@ -41,8 +42,8 @@ Run 'just gen-readme' to regenerate. -->
 
 Feature | Name | Description
 --- | --- | ---
-Chatbot | [Minimal deployment](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal) | Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
-Chatbot | [Healthcare corpus](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/healthcare) | Deploys the chatbot with a fictional healthcare corpus, showing how to name your own documents with `document_dirs` instead of the bundled repository docs.
+Chatbot | [Minimal deployment](./examples/minimal) | Deploys the hybrid search chatbot on AWS with MongoDB Atlas in one `terraform apply`.
+Chatbot | [Healthcare corpus](./examples/healthcare) | Deploys the chatbot with a fictional healthcare corpus, showing how to name your own documents with `document_dirs` instead of the bundled repository docs.
 
 <!-- END_TABLES -->
 
@@ -80,7 +81,7 @@ After you install the required tools, configure credentials as follows:
 
 - An AWS account and credentials for the account you deploy into.
 - MongoDB Atlas credentials with access to your organization, because the module creates the project. See [Security and IAM](#security-and-iam).
-- To deploy into an existing Atlas project instead, set `overrides.project_id`. With `overrides.project_id` set, the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. See [Make it your own](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/make-it-your-own.md).
+- To deploy into an existing Atlas project instead, set `overrides.project_id`. With `overrides.project_id` set, the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. See [Make it your own](docs/make-it-your-own.md).
 
 ```sh
 terraform init
@@ -90,7 +91,7 @@ terraform output https_url
 terraform output -raw chatbot_login_password
 ```
 
-Set `features.verify_deployment_ready = true` to have the apply poll `/health` until the app is ready. The apply exports `https_url`, `chatbot`, `chatbot_login_password`, `connection_string_public`, and `extra_apps`. The [minimal example](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/examples/minimal) is the copy-paste starting point.
+Set `features.verify_deployment_ready = true` to have the apply poll `/health` until the app is ready. The apply exports `https_url`, `chatbot`, `chatbot_login_password`, `connection_string_public`, and `extra_apps`. The [minimal example](./examples/minimal) is the copy-paste starting point.
 
 The demo signs in with a single shared username and password: `demo` and the `chatbot_login_password` output. It is meant for a walkthrough. A real application would use its own authentication and authorization, for example an SSO provider, per-user accounts, and role-based access.
 
@@ -98,15 +99,15 @@ The demo signs in with a single shared username and password: `demo` and the `ch
 
 The three content inputs cover the common path: `queries` sets the starter questions, `document_dirs` sets the documents the app ingests, and `assets_dir` replaces the branding. Empty values keep the bundled demo content.
 
-The named internals and the bring-your-own mechanisms are reached through `overrides`: the project (`overrides.project_id`), the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). The app container size is on the `chatbot` object: `chatbot.container_size`, `chatbot.task_cpu`, and `chatbot.task_memory`. See the input reference below for every field, and [docs/make-it-your-own.md](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/make-it-your-own.md) for the workflows the examples do not cover.
+The named internals and the bring-your-own mechanisms are reached through `overrides`: the project (`overrides.project_id`), the VPC (`overrides.byo_vpc`), the cluster shape (`overrides.cluster`), the custom domain (`overrides.domain`), the debug IP (`overrides.allowed_ip`), the extra apps (`overrides.extra_apps`), and the edge (`overrides.networking`). The app container size is on the `chatbot` object: `chatbot.container_size`, `chatbot.task_cpu`, and `chatbot.task_memory`. See the input reference below for every field, and [docs/make-it-your-own.md](docs/make-it-your-own.md) for the workflows the examples do not cover.
 
 ## Architecture
 
-The module composes the published [Landing Zone modules](https://registry.terraform.io/namespaces/terraform-mongodbatlas-modules) with the app modules in this repository. One apply creates an Atlas project and cluster, a VPC with private networking, an ECS Fargate service behind CloudFront, and a CodeBuild image pipeline. See [docs/architecture.md](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/architecture.md) for the request flow and the full resource list.
+The module composes the published [Landing Zone modules](https://registry.terraform.io/namespaces/terraform-mongodbatlas-modules) with the app modules in this repository. One apply creates an Atlas project and cluster, a VPC with private networking, an ECS Fargate service behind CloudFront, and a CodeBuild image pipeline. See [docs/architecture.md](docs/architecture.md) for the request flow and the full resource list.
 
 ## Security and IAM
 
-The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/security-and-iam.md) for the deployer-versus-runtime distinction, the Atlas credential requirement, and the roles the module creates, and [docs/deployer-permissions.md](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/deployer-permissions.md) for the captured least-privilege deployer policy.
+The app runs in private subnets with no public IP, reaches Atlas over PrivateLink, and reaches AWS APIs over interface VPC endpoints. The deployer identity is separate from the runtime roles the module creates. See [docs/security-and-iam.md](docs/security-and-iam.md) for the deployer-versus-runtime distinction, the Atlas credential requirement, and the roles the module creates, and [docs/deployer-permissions.md](docs/deployer-permissions.md) for the captured least-privilege deployer policy.
 
 <!-- BEGIN_TF_DOCS -->
 <!-- @generated
@@ -543,7 +544,7 @@ Set `llm.model` to the model id. A newer Amazon model or an Anthropic Claude mod
 
 ### How does ingest and search work?
 
-The app extracts and chunks each document, upserts one document per chunk into `chunks`, and Atlas Automated Embedding embeds each chunk inside the cluster. A question runs `$rankFusion` over a text pipeline and a vector pipeline, and the LLM answers from the top-ranked chunks. See [docs/architecture.md](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/blob/v0.2.0/docs/architecture.md) for the flow.
+The app extracts and chunks each document, upserts one document per chunk into `chunks`, and Atlas Automated Embedding embeds each chunk inside the cluster. A question runs `$rankFusion` over a text pipeline and a vector pipeline, and the LLM answers from the top-ranked chunks. See [docs/architecture.md](docs/architecture.md) for the flow.
 
 ### Why does search fail with `localhost:28000`?
 

@@ -30,6 +30,6 @@ terraform {
 
   provider_meta "mongodbatlas" {
     module_name    = "aws-chatbot"
-    module_version = "0.2.0"
+    module_version = "local"
   }
 }
