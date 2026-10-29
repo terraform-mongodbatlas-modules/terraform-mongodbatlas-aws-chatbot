@@ -7,6 +7,6 @@ Patient: Bart Simpson | Member ID: SMH-742-0001-03 | Provider: Dr. Wolfe, Dr. Wo
 - Adjustments every 6 weeks. Next: 2026-11-04 at 3:30 PM, then 2026-12-16.
 - Total treatment fee: $5,400.
 - Insurance: Springfield Mutual Health pays 50% up to the $2,000 orthodontia lifetime maximum. Expected plan payment $2,000; family responsibility $3,400.
-- Payment plan: $400 down, then $142 per month for 22 months (auto-pay on file).
+- Payment plan: $400 down, then $150 per month for 20 months (auto-pay on file).
 - Care instructions: no hard or sticky candy (including caramel, taffy, and jawbreakers), brush after every meal, wear a mouthguard for skateboarding.
 - Broken bracket or poking wire: call the office within 2 business days. The first bracket repair each year is free; after that, $45 per repair.

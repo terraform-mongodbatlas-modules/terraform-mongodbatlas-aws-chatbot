@@ -41,9 +41,9 @@ has no access to her partner Homer's records.
 - **Household and plan**: Account overview, care calendar, open action items, benefits, deductible
   status, policies, and a provider directory.
 
-The guardrail is prompt-only. Retrieval has no per-user filter, so Homer's chunks can be retrieved and
-the system prompt is the only thing that refuses them. A real deployment would pre-filter on member ID
-inside `$vectorSearch` or `$search`.
+The guardrail is prompt-only. Retrieval has no per-user filter, so Homer's chunks can be retrieved, and the
+UI shows every retrieved chunk in its expandable retrieval steps even when the answer refuses to discuss
+it. A real deployment would pre-filter on member ID inside `$vectorSearch` or `$search`.
 
 ## Chips and prompts to try
 
