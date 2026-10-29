@@ -1,5 +1,7 @@
 ## (Unreleased)
 
+## 0.2.0 (October 29, 2026)
+
 NOTES:
 
 * module: Documents why a small input change replaces the app secret version and the ECS task definition ([#26](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/26))
