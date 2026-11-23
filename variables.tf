@@ -230,7 +230,7 @@ variable "overrides" {
     - `permissions_boundary`: the ARN of an IAM permissions boundary applied to every IAM role the module creates; `null` leaves roles unbounded.
     - `project_id`: deploy into an existing Atlas project. The project module runs in reference mode: the module does not create, rename, or tag the project and does not read the organization, so a project-scoped credential is enough. The module still manages the project's `ip_access_list` for debug access.
     - `byo_vpc`: a per-region map that replaces the managed VPC (`vpc_config.create = false`).
-    - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, and `advanced_configuration`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the same as the cluster module's and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest).
+    - `cluster`: `cluster_type`, `shard_count`, `manual_scaling`, `auto_scaling.min_instance_size`, `autoembed_model`, `advanced_configuration`, and `redact_client_log_data`. `advanced_configuration` is passed to the cluster module unchanged, so its fields are the same as the cluster module's and are validated there; see the [cluster module reference](https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest). `redact_client_log_data` sets the cluster module's input of the same name and defaults to `true`, the cluster module's default. Set it to `false` to keep query filters in the cluster logs, where redaction replaces them with `###` and limits the Atlas Query Profiler and Performance Advisor; changing it triggers a rolling restart.
     - `extra_apps`: a map of additional apps on the same cluster. Each entry supports `image_url` or `dockerfile_path`, nullable `ecr`, `container_size`, `db_access`, and `routing`. An entry with no `routing` is a private worker with no HTTP edge. The key names the app: its resources are `<resource_prefix>-<key>`, so keep the key DNS-safe and short.
     - `networking`: the shared `main` edge every routing app uses.
     - `domain`: the custom-domain aliases and ACM certificate.
@@ -268,6 +268,12 @@ variable "overrides" {
       # cluster-module version adds works here without an aws-chatbot release. See
       # https://registry.terraform.io/modules/terraform-mongodbatlas-modules/cluster/mongodbatlas/latest
       advanced_configuration = optional(any, {})
+
+      # Passthrough to the cluster module's top-level `redact_client_log_data`, which
+      # `advanced_configuration` does not carry. The default repeats the cluster
+      # module's default: that input is nullable, so a null passed through would
+      # reach the cluster as null instead of selecting the default.
+      redact_client_log_data = optional(bool, true)
     }), {})
 
     extra_apps = optional(map(object({

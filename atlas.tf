@@ -122,6 +122,7 @@ module "atlas_cluster" {
   instance_size               = local.cluster_instance_size
   auto_scaling                = local.cluster_auto_scaling
   advanced_configuration      = local.cluster_advanced_configuration
+  redact_client_log_data      = local.cluster_redact_client_log_data
   version_release_system      = "CONTINUOUS"
   encryption_at_rest_provider = module.atlas_aws.encryption_at_rest_provider
   tags                        = local.tags
