@@ -385,6 +385,23 @@ locals {
     },
     var.chatbot.system_prompt == null ? {} : {
       RAG_SYSTEM_PROMPT = var.chatbot.system_prompt
+    },
+    # The app reads these from its settings; unset keeps the app defaults
+    # (5 snippets, 10 turns, rewriting on, rerank off, 80 candidates).
+    var.chatbot.llm_max_snippets == null ? {} : {
+      LLM_MAX_SNIPPETS = tostring(var.chatbot.llm_max_snippets)
+    },
+    var.chatbot.llm_history_turns == null ? {} : {
+      LLM_HISTORY_TURNS = tostring(var.chatbot.llm_history_turns)
+    },
+    var.chatbot.rewrite_followups == null ? {} : {
+      REWRITE_FOLLOWUPS = tostring(var.chatbot.rewrite_followups)
+    },
+    var.chatbot.rerank_results == null ? {} : {
+      RERANK_ENABLED = tostring(var.chatbot.rerank_results)
+    },
+    var.chatbot.rerank_candidates == null ? {} : {
+      RERANK_CANDIDATES = tostring(var.chatbot.rerank_candidates)
     }
   )
 

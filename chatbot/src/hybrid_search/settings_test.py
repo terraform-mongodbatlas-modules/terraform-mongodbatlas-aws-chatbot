@@ -143,6 +143,50 @@ def test_llm_max_snippets_rejects_zero_or_negative():
         _settings(llm_max_snippets=-1)
 
 
+def test_llm_history_turns_default():
+    assert _settings().llm_history_turns == 10
+
+
+def test_llm_history_turns_env_zero_turns_history_off(monkeypatch):
+    monkeypatch.setenv("LLM_HISTORY_TURNS", "0")
+    assert _settings().llm_history_turns == 0
+
+
+def test_llm_history_turns_rejects_negative():
+    with pytest.raises(ValueError, match="llm_history_turns"):
+        _settings(llm_history_turns=-1)
+
+
+def test_rewrite_followups_default_on():
+    assert _settings().rewrite_followups is True
+
+
+def test_rewrite_followups_env_false_turns_it_off(monkeypatch):
+    monkeypatch.setenv("REWRITE_FOLLOWUPS", "false")
+    assert _settings().rewrite_followups is False
+
+
+def test_rerank_is_off_by_default():
+    settings = _settings()
+    assert settings.rerank_enabled is False
+    assert settings.rerank_model == "rerank-2.5"
+    assert settings.rerank_candidates == 80
+
+
+def test_rerank_env_turns_it_on(monkeypatch):
+    monkeypatch.setenv("RERANK_ENABLED", "true")
+    monkeypatch.setenv("RERANK_CANDIDATES", "40")
+    settings = _settings()
+    assert settings.rerank_enabled is True
+    assert settings.rerank_candidates == 40
+
+
+@pytest.mark.parametrize("candidates", [0, 1001])
+def test_rerank_candidates_stay_within_what_the_stage_accepts(candidates):
+    with pytest.raises(ValueError, match="rerank_candidates"):
+        _settings(rerank_candidates=candidates)
+
+
 def test_document_dirs_defaults_to_bundled_corpus():
     assert _settings().document_dirs == [Path("assets/document_dirs")]
 

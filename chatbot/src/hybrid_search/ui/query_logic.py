@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorCollection
 
-from hybrid_search.generate import generate_answer, unique_source_files
+from hybrid_search.generate import Turn, generate_answer, unique_source_files
 from hybrid_search.indexes import ensure_indexes_ready
 from hybrid_search.search import SearchResult, search_with_modes
 from hybrid_search.search_modes import DEFAULT, SearchModes
@@ -48,10 +49,11 @@ async def answer_or_format(
     *,
     modes: SearchModes,
     settings: HybridSearchSettings,
+    history: Sequence[Turn] = (),
 ) -> QueryResult:
     references = search_result.references
     if modes.llm and settings.enable_llm:
-        result = await generate_answer(query, references, settings=settings)
+        result = await generate_answer(query, references, settings=settings, history=history)
         return QueryResult(
             references=references,
             answer=result.answer,

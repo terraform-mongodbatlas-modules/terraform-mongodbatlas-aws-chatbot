@@ -61,6 +61,27 @@ class HybridSearchSettings(BaseSettings):
     # search pipeline orders hits by relevance first), so the prompt stays
     # bounded while top_k controls how much is retrieved.
     llm_max_snippets: int = Field(default=5, ge=1)
+    # Earlier question-and-answer turns of a chat session sent to the model with
+    # each new question, so a follow-up can refer back. 0 sends every question
+    # on its own, and leaves nothing for rewrite_followups to work from.
+    llm_history_turns: int = Field(default=10, ge=0)
+    # The search only sees the text it is given, and a follow-up such as "and what
+    # will it cost?" names nothing to search for. When true, the model first
+    # restates a follow-up as a question that stands on its own, and the search
+    # runs on that. One extra model call per follow-up; the first message of a
+    # chat is never rewritten. This is the default of the chat's "Rewrite
+    # follow-ups" switch, which a user can flip per session.
+    rewrite_followups: bool = True
+    # Reorder the retrieved candidates with Atlas native reranking ($rerank) before
+    # the answer: a cross-encoder reads the question against each candidate, which
+    # recovers an exact match that rank fusion buried and a paraphrase that keyword
+    # search missed. Needs MongoDB 9.0 or later and Native Reranking enabled in the
+    # Atlas project, so it is off unless a deployment turns it on. When true, the
+    # chat shows a "Rerank results" switch, on at the start of each chat.
+    rerank_enabled: bool = False
+    rerank_model: str = "rerank-2.5"
+    # Candidates the retrieval hands to the reranker. $rerank accepts at most 1000.
+    rerank_candidates: int = Field(default=80, ge=1, le=1000)
     llm_provider: LlmProvider = "anthropic"
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"

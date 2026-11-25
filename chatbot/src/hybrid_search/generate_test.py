@@ -67,3 +67,85 @@ async def test_generate_answer_limits_context_to_llm_max_snippets(monkeypatch):
     assert "snippet 0" in prompt
     assert "snippet 1" not in prompt
     assert "snippet 2" not in prompt
+
+
+def _llm_settings(**overrides: object) -> HybridSearchSettings:
+    return HybridSearchSettings(
+        mongodb_uri=SecretStr("mongodb://localhost"),
+        anthropic_api_key=SecretStr("anthropic-key"),
+        **overrides,
+    )
+
+
+_HISTORY = [
+    generate_module.Turn(question="first question", answer="first answer"),
+    generate_module.Turn(question="second question", answer="second answer"),
+]
+_ONE_REFERENCE = [{"file_path": "b.md", "content": "c"}]
+
+
+def test_recent_turns_keeps_the_last_turns_and_none_for_zero():
+    assert generate_module.recent_turns(_HISTORY, 5) == _HISTORY
+    assert generate_module.recent_turns(_HISTORY, 1) == _HISTORY[1:]
+    assert generate_module.recent_turns(_HISTORY, 0) == []
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_prompt_is_unchanged_without_history(monkeypatch):
+    mock_run = AsyncMock(return_value="answer text")
+    monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
+
+    await generate_module.generate_answer("q", _ONE_REFERENCE, settings=_llm_settings())
+
+    assert mock_run.await_args.args[0] == (
+        "Answer the question using only the context snippets. "
+        "If the context is insufficient, say so briefly.\n\n"
+        "Question: q\n\nContext:\nc"
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_puts_earlier_turns_before_the_question(monkeypatch):
+    mock_run = AsyncMock(return_value="answer text")
+    monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
+
+    await generate_module.generate_answer(
+        "and the next one?", _ONE_REFERENCE, settings=_llm_settings(), history=_HISTORY
+    )
+
+    prompt = mock_run.await_args.args[0]
+    assert prompt.endswith(
+        "Conversation so far:\n"
+        "User: first question\nAssistant: first answer\n\n"
+        "User: second question\nAssistant: second answer\n\n"
+        "Question: and the next one?\n\nContext:\nc"
+    )
+    assert "earlier answers in this conversation" in prompt
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_keeps_only_the_most_recent_turns(monkeypatch):
+    mock_run = AsyncMock(return_value="answer text")
+    monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
+
+    await generate_module.generate_answer(
+        "q", _ONE_REFERENCE, settings=_llm_settings(llm_history_turns=1), history=_HISTORY
+    )
+
+    prompt = mock_run.await_args.args[0]
+    assert "second question" in prompt
+    assert "first question" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_generate_answer_ignores_history_when_turns_is_zero(monkeypatch):
+    mock_run = AsyncMock(return_value="answer text")
+    monkeypatch.setattr(llm_module, "run_rag_prompt", mock_run)
+
+    await generate_module.generate_answer(
+        "q", _ONE_REFERENCE, settings=_llm_settings(llm_history_turns=0), history=_HISTORY
+    )
+
+    prompt = mock_run.await_args.args[0]
+    assert "Conversation so far" not in prompt
+    assert "second question" not in prompt

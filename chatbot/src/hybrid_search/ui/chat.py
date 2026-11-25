@@ -10,6 +10,7 @@ import chainlit as cl
 from pymongo.errors import PyMongoError
 
 from hybrid_search import extract as extract_module
+from hybrid_search.generate import Turn, recent_turns
 from hybrid_search.indexes import index_states
 from hybrid_search.ingest import (
     delete_all_chunks,
@@ -50,6 +51,7 @@ from hybrid_search.ui.query_steps import run_query_with_steps
 from hybrid_search.ui.search_settings import (
     SEARCH_MODES_KEY,
     confirmation_message,
+    default_modes,
     modes_from_settings,
     send_default_settings,
 )
@@ -58,6 +60,9 @@ logger = logging.getLogger(__name__)
 _ASK_ACCEPT = ["application/pdf", "text/plain", "text/markdown", "text/x-markdown"]
 INGEST_MAX_FILES = 20
 INGEST_MAX_SIZE_MB = 100
+# Earlier turns of this chat session, kept in the Chainlit user session: a new
+# chat starts without any.
+HISTORY_KEY = "history"
 INGEST_ASK_PROMPT = (
     f"Choose pdf, txt, or md to ingest (up to {INGEST_MAX_FILES} files, "
     f"{INGEST_MAX_SIZE_MB} MB per batch)."
@@ -118,7 +123,10 @@ async def on_chat_start():
         return
     set_ui_mode(UiMode.QUERY)
     await cl.context.emitter.set_commands([INGEST_COMMAND, DELETE_COMMAND, DEMO_COMMAND])
-    await send_default_settings()
+    await send_default_settings(
+        default_modes(rewrite_followups=settings.rewrite_followups, rerank=settings.rerank_enabled),
+        rerank_available=settings.rerank_enabled,
+    )
 
 
 @cl.on_chat_end
@@ -218,10 +226,11 @@ async def _handle_query(query: str):
     if message := problem_message(states, query=True):
         await cl.Message(content=message).send()
         return
+    history = cl.user_session.get(HISTORY_KEY) or []
     # Surface the failure in the UI instead of a blank reply.
     try:
         result = await run_query_with_steps(
-            query, settings=settings, collection=collection, modes=modes
+            query, settings=settings, collection=collection, modes=modes, history=history
         )
     except Exception as exc:
         logger.exception("Query failed")
@@ -229,6 +238,8 @@ async def _handle_query(query: str):
         return
     if not result.answer:
         return
+    turn = Turn(question=query, answer=result.answer)
+    cl.user_session.set(HISTORY_KEY, recent_turns([*history, turn], settings.llm_history_turns))
     if result.source_files:
         sources = "\n".join(f"- {name}" for name in result.source_files)
         footer = f"### Sources\n{sources}"

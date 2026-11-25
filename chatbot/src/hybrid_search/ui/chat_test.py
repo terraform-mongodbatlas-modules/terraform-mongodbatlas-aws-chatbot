@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import hybrid_search.ui.chat as chat_module
+from hybrid_search.generate import Turn
 from hybrid_search.ingest import IngestedFile
 from hybrid_search.ui.demo import Mode
 
@@ -148,3 +149,62 @@ async def test_handle_query_surfaces_failure_description(monkeypatch):
     await chat_module._handle_query("risk")
 
     assert sent == ["Query failed: Unable to locate credentials"]
+
+
+def _patch_query_path(monkeypatch, run_query_with_steps) -> None:
+    class _FakeMessage:
+        def __init__(self, content: str = "") -> None:
+            self.content = content
+
+        async def send(self) -> None:
+            return None
+
+    async def fake_index_states(collection, settings):
+        return []
+
+    monkeypatch.setattr(chat_module, "index_states", fake_index_states)
+    monkeypatch.setattr(chat_module, "problem_message", lambda states, query: None)
+    monkeypatch.setattr(chat_module, "run_query_with_steps", run_query_with_steps)
+    monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
+
+
+@pytest.mark.asyncio
+async def test_handle_query_remembers_turns_for_the_next_question(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", type("Settings", (), {"llm_history_turns": 1})())
+    session.set("collection", object())
+    seen: list[list[Turn]] = []
+
+    async def fake_run_query_with_steps(query, **kwargs):
+        seen.append(list(kwargs["history"]))
+        return type("Result", (), {"answer": f"answer to {query}", "source_files": []})()
+
+    _patch_query_path(monkeypatch, fake_run_query_with_steps)
+
+    await chat_module._handle_query("first")
+    await chat_module._handle_query("second")
+    await chat_module._handle_query("third")
+
+    # llm_history_turns = 1: each question sees only the turn before it.
+    assert seen == [
+        [],
+        [Turn(question="first", answer="answer to first")],
+        [Turn(question="second", answer="answer to second")],
+    ]
+
+
+@pytest.mark.asyncio
+async def test_handle_query_does_not_remember_a_reply_without_an_answer(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", type("Settings", (), {"llm_history_turns": 10})())
+    session.set("collection", object())
+
+    async def fake_run_query_with_steps(query, **kwargs):
+        # Retrieval-only mode: the hits are shown, no answer is written.
+        return type("Result", (), {"answer": None, "source_files": ["a.md"]})()
+
+    _patch_query_path(monkeypatch, fake_run_query_with_steps)
+
+    await chat_module._handle_query("first")
+
+    assert session.get(chat_module.HISTORY_KEY) is None

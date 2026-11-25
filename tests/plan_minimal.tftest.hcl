@@ -368,6 +368,73 @@ run "chatbot_system_prompt_is_omitted_by_default" {
   }
 }
 
+run "chatbot_answer_settings_reach_the_container_env" {
+  command = plan
+
+  variables {
+    chatbot = {
+      llm_max_snippets  = 20
+      llm_history_turns = 0
+      rewrite_followups = false
+      rerank_results    = true
+      rerank_candidates = 40
+    }
+  }
+
+  assert {
+    condition     = local.app_env.LLM_MAX_SNIPPETS == "20"
+    error_message = "chatbot.llm_max_snippets should land in the container env as LLM_MAX_SNIPPETS"
+  }
+
+  assert {
+    condition     = local.app_env.LLM_HISTORY_TURNS == "0"
+    error_message = "chatbot.llm_history_turns = 0 should land in the container env as LLM_HISTORY_TURNS, not be dropped"
+  }
+
+  assert {
+    condition     = local.app_env.REWRITE_FOLLOWUPS == "false"
+    error_message = "chatbot.rewrite_followups = false should land in the container env as REWRITE_FOLLOWUPS, not be dropped"
+  }
+
+  assert {
+    condition     = local.app_env.RERANK_ENABLED == "true" && local.app_env.RERANK_CANDIDATES == "40"
+    error_message = "chatbot.rerank_results and chatbot.rerank_candidates should land in the container env as RERANK_ENABLED and RERANK_CANDIDATES"
+  }
+}
+
+run "chatbot_answer_settings_are_omitted_by_default" {
+  command = plan
+
+  assert {
+    condition     = !contains(keys(local.app_env), "LLM_MAX_SNIPPETS") && !contains(keys(local.app_env), "LLM_HISTORY_TURNS") && !contains(keys(local.app_env), "REWRITE_FOLLOWUPS") && !contains(keys(local.app_env), "RERANK_ENABLED") && !contains(keys(local.app_env), "RERANK_CANDIDATES")
+    error_message = "Unset chatbot answer and search settings should leave the app defaults in place"
+  }
+}
+
+run "chatbot_rerank_candidates_rejects_more_than_the_stage_accepts" {
+  command = plan
+
+  variables {
+    chatbot = {
+      rerank_candidates = 1001
+    }
+  }
+
+  expect_failures = [var.chatbot]
+}
+
+run "chatbot_llm_max_snippets_rejects_zero" {
+  command = plan
+
+  variables {
+    chatbot = {
+      llm_max_snippets = 0
+    }
+  }
+
+  expect_failures = [var.chatbot]
+}
+
 run "extra_tags_merge_over_the_built_ins" {
   command = plan
 
