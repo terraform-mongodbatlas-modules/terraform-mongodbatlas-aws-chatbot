@@ -104,6 +104,18 @@ class HybridSearchSettings(BaseSettings):
             case _:
                 return value
 
+    @field_validator("rag_system_prompt", mode="before")
+    @classmethod
+    def default_for_blank_prompt(cls, value: object) -> object:
+        # A deployment without chatbot.system_prompt, or one that sets an empty
+        # string, sends a blank value. An empty prompt would drop the answer
+        # contract, so keep the built-in prompt in that case.
+        match value:
+            case str() if not value.strip():
+                return DEFAULT_RAG_SYSTEM_PROMPT
+            case _:
+                return value
+
     @field_validator("chunk_max_tokens")
     @classmethod
     def validate_chunk_max_tokens(cls, value: int) -> int:

@@ -76,6 +76,22 @@ def test_rag_system_prompt_env_override(monkeypatch):
     assert get_settings().rag_system_prompt == "Answer in one line."
 
 
+def test_rag_system_prompt_blank_falls_back_to_default():
+    assert _settings(rag_system_prompt="").rag_system_prompt == (
+        settings_module.DEFAULT_RAG_SYSTEM_PROMPT
+    )
+    assert _settings(rag_system_prompt="   ").rag_system_prompt == (
+        settings_module.DEFAULT_RAG_SYSTEM_PROMPT
+    )
+
+
+def test_rag_system_prompt_blank_env_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("RAG_SYSTEM_PROMPT", "")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost")
+    clear_settings_cache()
+    assert get_settings().rag_system_prompt == settings_module.DEFAULT_RAG_SYSTEM_PROMPT
+
+
 def test_rejects_bad_mongodb_uri():
     with pytest.raises(ValueError, match="mongodb_uri"):
         _settings(mongodb_uri=SecretStr("http://bad"))

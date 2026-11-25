@@ -316,7 +316,13 @@ delete-llm-secret name="mongodb-chatbot-llm" region="us-east-1":
 	echo "Deleted {{name}}"
 # Write secrets/.env.local from a deployed stack for local docker compose (needs features.debug_access_for_cluster).
 dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.env.local":
-	just -f "{{justfile_directory()}}/chatbot/justfile" dump-local-env terraform_dir="{{terraform_dir}}" region="{{region}}" output="{{output}}"
+	just -f "{{justfile_directory()}}/chatbot/justfile" dump-local-env "{{terraform_dir}}" "{{region}}" "{{output}}"
+
+# Register a corpus directory as a chat profile in the deployment behind chatbot/secrets/.env.local.
+register-corpus dir:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	just -f "{{justfile_directory()}}/chatbot/justfile" register-corpus "$(cd "{{dir}}" && pwd)"
 # LIVE SMOKE
 # Poll /health on a deployed stack. Stdlib only; reads the module output at the
 # workspace given by --module-dir, else HYBRID_SEARCH_URL.

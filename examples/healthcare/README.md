@@ -20,6 +20,9 @@ its own records and points the app at them with the following inputs:
 - **`skip_repo_docs`**: Stop staging the repository docs, so the image carries only these records.
 - **`queries`**: The starter chips, in the order they appear. `queries.yaml` holds the family chips.
 - **`chatbot.system_prompt`**: The RAG prompt. `system_prompt.txt` sets the persona and the guardrail.
+- **`corpus.yaml`**: The manifest that registers this directory as a second chat profile in another deployment
+  with `just register-corpus examples/healthcare`. The file names above are its omitted-field defaults, so the
+  manifest names only the collection and its label.
 
 Use the same pattern for your own data: point `document_dirs` at your files, name the chips in
 `queries`, and describe the assistant's voice in `chatbot.system_prompt`.

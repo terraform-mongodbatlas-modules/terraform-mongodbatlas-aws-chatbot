@@ -26,6 +26,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TOP_K: ${TOP_K:-20}
       CHUNK_MAX_TOKENS: ${CHUNK_MAX_TOKENS:-512}
+      # dump-local-env copies the deployment's chatbot.system_prompt here. A
+      # deployment without one leaves this empty, and the app keeps its
+      # built-in prompt instead of answering with an empty one.
+      RAG_SYSTEM_PROMPT: ${RAG_SYSTEM_PROMPT:-}
       BEDROCK_MODEL: ${BEDROCK_MODEL:-amazon.nova-lite-v1:0}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       # Bedrock (the default LLM) signs with AWS credentials. dump-local-env
