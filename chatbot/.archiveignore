@@ -16,6 +16,8 @@
 .mypy_cache
 dist
 .git
+**/.build
+**/.render
 **/__pycache__
 **/*.pyc
 **/*.egg-info

@@ -1,0 +1,11 @@
+```release-note:bug
+module: Writes build artifacts under the caller's root so `terraform init` no longer deletes the render and archive inputs
+```
+
+```release-note:enhancement
+module: Adds `overrides.build_artifacts_dir` to place the generated `.build` and `.render` trees, so two module calls in one working directory keep separate artifacts
+```
+
+```release-note:note
+module: Deployments created before this fix replace `prepare_build_dirs` and `render_assets` once, because the artifacts root is now a replacement trigger
+```
