@@ -335,6 +335,7 @@ locals {
     disk_gb_enabled           = true
   }
   cluster_advanced_configuration = var.overrides.cluster.advanced_configuration
+  cluster_redact_client_log_data = var.overrides.cluster.redact_client_log_data
 
   # --- Mongo connection strings -----------------------------------------------
   # The cluster's own `connection_strings` attribute omits the private-endpoint

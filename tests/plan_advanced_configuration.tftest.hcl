@@ -142,3 +142,51 @@ run "default_passes_an_empty_object" {
     error_message = "An unset advanced_configuration should pass an empty object so the cluster module applies its defaults"
   }
 }
+
+# `redact_client_log_data` is a top-level cluster input, not a field of
+# `advanced_configuration`, so `overrides.cluster` carries it as its own field.
+run "redact_client_log_data_override_reaches_the_cluster_input" {
+  command = plan
+
+  variables {
+    overrides = {
+      cluster = {
+        redact_client_log_data = false
+      }
+    }
+  }
+
+  assert {
+    condition     = local.cluster_redact_client_log_data == false
+    error_message = "overrides.cluster.redact_client_log_data should reach the cluster input unchanged"
+  }
+}
+
+# The cluster module declares the input nullable with a default of true, so a
+# null passed through would not select that default. An unset flag must reach
+# the cluster as true; the cluster plan snapshot pins the same value.
+run "redact_client_log_data_defaults_to_true" {
+  command = plan
+
+  assert {
+    condition     = local.cluster_redact_client_log_data == true
+    error_message = "An unset redact_client_log_data should pass true, the cluster module's default"
+  }
+}
+
+run "null_redact_client_log_data_keeps_the_default" {
+  command = plan
+
+  variables {
+    overrides = {
+      cluster = {
+        redact_client_log_data = null
+      }
+    }
+  }
+
+  assert {
+    condition     = local.cluster_redact_client_log_data == true
+    error_message = "A null redact_client_log_data should resolve to true, not reach the cluster as null"
+  }
+}
