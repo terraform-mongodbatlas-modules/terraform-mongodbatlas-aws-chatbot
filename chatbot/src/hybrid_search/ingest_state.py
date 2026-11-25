@@ -1,8 +1,12 @@
 """Content-hash state for the CLI and startup ingest paths.
 
-State lives in its own ``ingest_state`` collection so it never collides with
-chunk queries, ``$rankFusion``, or ``list_ingested_files``, all of which read
-``chunks`` with no filter.
+State lives in its own ``{chunks_collection}_ingest_state`` collection so it
+never collides with chunk queries, ``$rankFusion``, or ``list_ingested_files``,
+all of which read the chunks collection with no filter. The state collection is
+per chunks collection, so two chat profiles in one database keep separate
+content hashes. Deployments upgraded from a single ``ingest_state`` collection
+re-ingest every document once, because the new collection starts empty; the old
+``ingest_state`` collection is no longer read and can be dropped.
 
 The state document ``_id`` is the source key. That key is also the ``file_path``
 the chunk documents carry, so ``delete_many({"file_path": key})`` targets exactly

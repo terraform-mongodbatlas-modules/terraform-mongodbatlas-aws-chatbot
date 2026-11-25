@@ -43,6 +43,12 @@ def test_load_demo_queries(tmp_path):
     assert load_demo_queries(path) == [DemoQuery(label="A", message="What is A?")]
 
 
+def test_load_demo_queries_accepts_a_bare_list(tmp_path):
+    path = tmp_path / "queries.yaml"
+    path.write_text("# chips\n- label: A\n  message: What is A?\n")
+    assert load_demo_queries(path) == [DemoQuery(label="A", message="What is A?")]
+
+
 def test_load_demo_queries_rejects_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError, match="not found"):
         load_demo_queries(tmp_path / "missing.yaml")

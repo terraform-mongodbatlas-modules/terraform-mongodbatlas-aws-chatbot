@@ -18,7 +18,7 @@ from hybrid_search.cli.app import app
 from hybrid_search.ingest import delete_by_file_path
 from hybrid_search.ingest_state import source_key
 from hybrid_search.integration.conftest import TEST_DATABASE, integration_settings
-from hybrid_search.mongo import get_client
+from hybrid_search.mongo import get_client, ingest_state_collection_name
 from hybrid_search.settings import HybridSearchSettings, clear_settings_cache
 
 QUERY = "quantum flux capacitor"
@@ -65,7 +65,7 @@ def _delete_chunks(settings: HybridSearchSettings, file_path: str) -> None:
             await delete_by_file_path(
                 file_path,
                 collection=database[settings.chunks_collection],
-                state_collection=database["ingest_state"],
+                state_collection=database[ingest_state_collection_name(settings.chunks_collection)],
             )
         finally:
             client.close()
