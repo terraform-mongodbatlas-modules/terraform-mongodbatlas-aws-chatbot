@@ -11,7 +11,7 @@ import chainlit as cl
 from pymongo.errors import PyMongoError
 
 from hybrid_search import extract as extract_module
-from hybrid_search.chatbot_profiles import DemoQuery
+from hybrid_search.chatbot_profiles import DemoQuery, load_startup_status
 from hybrid_search.indexes import index_states
 from hybrid_search.ingest import (
     delete_all_chunks,
@@ -21,7 +21,12 @@ from hybrid_search.ingest import (
     list_ingested_files,
     skip_reason_for_filename,
 )
-from hybrid_search.mongo import chunks_collection, get_client, ingest_state_collection
+from hybrid_search.mongo import (
+    chunks_collection,
+    get_client,
+    ingest_state_collection,
+    profiles_collection,
+)
 from hybrid_search.search_modes import DEFAULT
 from hybrid_search.settings import apply_log_level, get_settings
 from hybrid_search.ui.delete_logic import format_ingested_file_list, resolve_delete_selection
@@ -162,10 +167,19 @@ async def on_chat_start():
         if resolution.rejected_name:
             await cl.Message(content=rejected_profile_message(resolution)).send()
         # Index creation lives in the app startup task; creating here too would
-        # race it on a fresh deployment. Report state instead.
+        # race it on a fresh deployment. Report state and the last recorded
+        # startup error instead. Read the status directly rather than through the
+        # cached profile listing, so a redeploy shows up immediately.
+        startup = await load_startup_status(
+            profiles_collection(client, session_settings),
+            name=session_settings.chunks_collection,
+        )
         states = await index_states(collection, session_settings)
         if message := problem_message(
-            states, query=False, collection=session_settings.chunks_collection
+            states,
+            query=False,
+            collection=session_settings.chunks_collection,
+            startup=startup,
         ):
             await cl.Message(content=message).send()
     except (OSError, ValueError, RuntimeError, TypeError, PyMongoError) as exc:

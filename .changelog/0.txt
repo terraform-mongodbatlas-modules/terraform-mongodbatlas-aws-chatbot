@@ -13,3 +13,11 @@ module: Adds a `_chatbot_profiles` registry with one document per chat profile, 
 ```release-note:enhancement
 module: Adds a `corpus.yaml` manifest and `hybrid-search register-corpus` (plus `just register-corpus`) so a corpus directory registers as a chat profile in one command, and lets `just dump-local-env` and the local compose carry `chatbot.system_prompt` to the app
 ```
+
+```release-note:bug
+module: Reports an index the app has not created as `MISSING` instead of `PENDING`, so a failed startup no longer looks like a build that never finishes
+```
+
+```release-note:enhancement
+module: Retries index creation on startup, drops and recreates `FAILED` indexes, records the startup error on the default profile document, and adds `hybrid-search index-create --recreate`
+```

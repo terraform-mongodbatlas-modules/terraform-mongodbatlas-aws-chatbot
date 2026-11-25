@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from motor.motor_asyncio import AsyncIOMotorCollection
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pymongo.errors import PyMongoError
 
 PROFILES_COLLECTION = "_chatbot_profiles"
 
@@ -53,6 +55,15 @@ class ChatbotProfile(BaseModel):
         # A hand-written ``queries:`` line parses as null. Treat it as no chips
         # instead of dropping the whole registration from the dropdown.
         return [] if value is None else value
+
+
+class StartupStatus(BaseModel):
+    """The last startup task outcome, stored beside the profile fields."""
+
+    outcome: Literal["ok", "failed"]
+    phase: str
+    error: str | None = None
+    finished_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 async def load_registry(
@@ -99,3 +110,41 @@ async def upsert_profile(
     if insert_fields:
         update["$setOnInsert"] = dict(insert_fields)
     await collection.update_one({"_id": name}, update, upsert=True)
+
+
+async def record_startup_status(
+    collection: AsyncIOMotorCollection,
+    *,
+    name: str,
+    status: StartupStatus,
+) -> None:
+    """Write the last startup outcome beside the profile fields.
+
+    ``upsert=False`` on purpose: a status write must never create a document
+    without ``display_name``, which would drop the default profile from the
+    listing. The startup task writes the profile first, so the document exists.
+    """
+    await collection.update_one(
+        {"_id": name},
+        {"$set": {"startup": status.model_dump()}},
+        upsert=False,
+    )
+
+
+async def load_startup_status(
+    collection: AsyncIOMotorCollection,
+    *,
+    name: str,
+) -> StartupStatus | None:
+    try:
+        doc = await collection.find_one({"_id": name})
+    except PyMongoError as exc:
+        logger.warning(f"could not read startup status for {name!r}: {exc}")
+        return None
+    if not doc or doc.get("startup") is None:
+        return None
+    try:
+        return StartupStatus.model_validate(doc["startup"])
+    except ValidationError:
+        logger.warning(f"Ignoring the startup status on {name!r}: not a StartupStatus document")
+        return None

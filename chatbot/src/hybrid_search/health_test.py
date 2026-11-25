@@ -44,13 +44,33 @@ def test_payload_empty_collection():
     assert payload["data_ingested"] is False
 
 
-def test_payload_missing_index_is_pending():
+def test_payload_missing_index_is_missing():
     payload = build_health_payload(
         index_states=[
-            IndexState(name="autoembed_idx", status="PENDING"),
+            IndexState(name="autoembed_idx", status="MISSING"),
             IndexState(name="text_idx", status="READY"),
         ],
         has_chunks=False,
     )
     assert payload["indexes_ready"] is False
-    assert payload["indexes"][0] == {"name": "autoembed_idx", "status": "PENDING"}
+    assert payload["indexes"][0] == {"name": "autoembed_idx", "status": "MISSING"}
+
+
+def test_payload_carries_the_index_detail_when_present():
+    payload = build_health_payload(
+        index_states=[
+            IndexState(
+                name="autoembed_idx",
+                status="FAILED",
+                detail="autoEmbed model is not enabled",
+            ),
+            IndexState(name="text_idx", status="READY"),
+        ],
+        has_chunks=True,
+    )
+    assert payload["indexes"][0] == {
+        "name": "autoembed_idx",
+        "status": "FAILED",
+        "detail": "autoEmbed model is not enabled",
+    }
+    assert payload["indexes"][1] == {"name": "text_idx", "status": "READY"}

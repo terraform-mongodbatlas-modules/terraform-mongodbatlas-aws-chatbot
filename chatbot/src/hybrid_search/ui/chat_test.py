@@ -4,7 +4,7 @@ import pytest
 from pydantic import SecretStr
 
 import hybrid_search.ui.chat as chat_module
-from hybrid_search.chatbot_profiles import DemoQuery
+from hybrid_search.chatbot_profiles import DemoQuery, StartupStatus
 from hybrid_search.ingest import IngestedFile
 from hybrid_search.settings import DEFAULT_RAG_SYSTEM_PROMPT, HybridSearchSettings
 from hybrid_search.ui.demo import Mode
@@ -220,6 +220,9 @@ def _patch_startup(
     async def fake_index_states(collection: object, settings: object) -> list:
         return []
 
+    async def fake_load_startup_status(collection: object, *, name: str) -> None:
+        return None
+
     async def fake_send_default_settings() -> None:
         return None
 
@@ -229,7 +232,10 @@ def _patch_startup(
     monkeypatch.setattr(chat_module, "load_demo_queries", lambda path: [])
     monkeypatch.setattr(chat_module, "apply_log_level", lambda level: None)
     monkeypatch.setattr(chat_module, "index_states", fake_index_states)
-    monkeypatch.setattr(chat_module, "problem_message", lambda states, query, collection: None)
+    monkeypatch.setattr(chat_module, "load_startup_status", fake_load_startup_status)
+    monkeypatch.setattr(
+        chat_module, "problem_message", lambda states, query, collection, startup=None: None
+    )
     monkeypatch.setattr(chat_module, "send_default_settings", fake_send_default_settings)
     monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
     monkeypatch.setattr(chat_module.cl, "context", _FakeContext())
@@ -248,6 +254,27 @@ async def test_on_chat_start_uses_the_selected_profile(monkeypatch):
     assert session.get("collection").name == "health"
     assert session.get("state_collection").name == "health_ingest_state"
     assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_on_chat_start_passes_the_recorded_startup_status(monkeypatch):
+    session, _sent = _patch_startup(monkeypatch, listing=LISTING)
+    session.set("chat_profile", "health")
+    startup = StartupStatus(outcome="failed", phase="indexes", error="model is not enabled")
+    seen: list[StartupStatus | None] = []
+
+    async def fake_load_startup_status(collection: object, *, name: str) -> StartupStatus:
+        return startup
+
+    def fake_problem_message(states, *, query, collection, startup=None):
+        seen.append(startup)
+
+    monkeypatch.setattr(chat_module, "load_startup_status", fake_load_startup_status)
+    monkeypatch.setattr(chat_module, "problem_message", fake_problem_message)
+
+    await chat_module.on_chat_start()
+
+    assert seen == [startup]
 
 
 @pytest.mark.asyncio

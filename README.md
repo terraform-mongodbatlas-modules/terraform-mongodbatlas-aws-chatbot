@@ -550,7 +550,7 @@ The app extracts and chunks each document, upserts one document per chunk into `
 
 ### Why does search fail with `localhost:28000`?
 
-`$rankFusion` runs `$search` on the cluster, and `mongod` connects to Atlas Search (`mongot`) at `127.0.0.1:28000` on the same node. A connection refused error means `mongot` is not listening. Confirm `chunks.text_idx` and `chunks.autoembed_idx` are `READY` in the index status, and recreate them if they were never created.
+`$rankFusion` runs `$search` on the cluster, and `mongod` connects to Atlas Search (`mongot`) at `127.0.0.1:28000` on the same node. A connection refused error means `mongot` is not listening. Confirm `chunks.text_idx` and `chunks.autoembed_idx` are `READY` in the index status. An index the app reports as `MISSING` has not been created yet. A restart drops and recreates an index that reached `FAILED`, and `hybrid-search index-create --recreate` does the same without a redeploy.
 
 ### What is the app secret name?
 

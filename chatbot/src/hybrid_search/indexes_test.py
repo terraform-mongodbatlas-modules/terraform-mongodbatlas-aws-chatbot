@@ -7,12 +7,14 @@ import pytest
 from pydantic import SecretStr
 from pymongo.errors import OperationFailure
 
+from hybrid_search.health import IndexState
 from hybrid_search.indexes import (
     autoembed_index_definition,
     create_and_wait_chunks_indexes,
     create_chunks_indexes_if_missing,
     ensure_indexes_ready,
     format_index_ready_line,
+    index_states,
     wait_chunks_indexes_ready,
 )
 from hybrid_search.settings import HybridSearchSettings
@@ -43,14 +45,17 @@ class _FakeCollection:
         name: str = "chunks",
         database_name: str = "hybrid_search",
         create_failures: int = 0,
+        create_errors: list[Exception] | None = None,
     ) -> None:
         self.name = name
         self.database = type("DB", (), {"name": database_name})()
         self.pages = pages
         self.page_index = 0
         self.create_failures = create_failures
+        self.create_errors = list(create_errors or [])
         self.inserted = 0
         self.created: list[str] = []
+        self.dropped: list[str] = []
 
     def list_search_indexes(self) -> _FakeCursor:
         return _FakeCursor(self)
@@ -62,10 +67,15 @@ class _FakeCollection:
         pass
 
     async def create_search_index(self, model: Any) -> None:
+        if self.create_errors:
+            raise self.create_errors.pop(0)
         if self.create_failures > 0:
             self.create_failures -= 1
             raise OperationFailure("database hybrid_search not found", 26)
         self.created.append(model.document["name"])
+
+    async def drop_search_index(self, name: str) -> None:
+        self.dropped.append(name)
 
 
 @pytest.fixture
@@ -235,7 +245,7 @@ async def test_ensure_indexes_ready_raises_with_status_for_pending(settings):
 @pytest.mark.asyncio
 async def test_ensure_indexes_ready_reports_missing_index(settings):
     collection = _FakeCollection([[_index("text_idx", "READY")]])
-    with pytest.raises(RuntimeError, match=r"autoembed_idx \(PENDING\)"):
+    with pytest.raises(RuntimeError, match=r"autoembed_idx \(MISSING\)"):
         await ensure_indexes_ready(collection, settings)
 
 
@@ -272,3 +282,118 @@ async def test_create_and_wait_chunks_indexes_returns_and_logs_the_ready_lines(s
     assert all(line.endswith(" READY") for line in lines)
     assert {line.split()[1] for line in lines} == {"chunks.autoembed_idx", "chunks.text_idx"}
     assert "chunks.text_idx READY" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_index_states_report_missing_instead_of_pending(settings):
+    collection = _FakeCollection([[_index("text_idx", "READY")]])
+
+    states = await index_states(collection, settings)
+
+    assert states == [
+        IndexState(name="autoembed_idx", status="MISSING"),
+        IndexState(name="text_idx", status="READY"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("status_detail", "expected"),
+    [
+        ("autoEmbed model is not enabled", "autoEmbed model is not enabled"),
+        (
+            [{"message": "model is not enabled"}, {"message": "retry later"}],
+            "model is not enabled; retry later",
+        ),
+        (["first", "second"], "first; second"),
+        (None, None),
+    ],
+)
+@pytest.mark.asyncio
+async def test_index_states_carry_the_atlas_status_detail(settings, status_detail, expected):
+    index = {"name": "autoembed_idx", "status": "FAILED"}
+    if status_detail is not None:
+        index["statusDetail"] = status_detail
+    collection = _FakeCollection([[index, _index("text_idx", "READY")]])
+
+    states = await index_states(collection, settings)
+
+    assert states[0].detail == expected
+
+
+@pytest.mark.asyncio
+async def test_wait_failed_error_includes_the_atlas_detail(settings):
+    collection = _FakeCollection(
+        [
+            [
+                {
+                    "name": "autoembed_idx",
+                    "status": "FAILED",
+                    "statusDetail": "autoEmbed model is not enabled",
+                }
+            ]
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="autoEmbed model is not enabled"):
+        await wait_chunks_indexes_ready(collection, settings, timeout_s=5, interval_s=0)
+
+
+@pytest.mark.asyncio
+async def test_create_recreates_a_failed_index_when_requested(settings):
+    collection = _FakeCollection([[_index("autoembed_idx", "FAILED"), _index("text_idx", "READY")]])
+
+    await create_chunks_indexes_if_missing(collection, settings, recreate_failed=True)
+
+    assert collection.dropped == ["autoembed_idx"]
+    assert collection.created == ["autoembed_idx"]
+
+
+@pytest.mark.asyncio
+async def test_create_leaves_a_failed_index_by_default(settings):
+    collection = _FakeCollection([[_index("autoembed_idx", "FAILED"), _index("text_idx", "READY")]])
+
+    await create_chunks_indexes_if_missing(collection, settings)
+
+    assert collection.dropped == []
+    assert collection.created == []
+
+
+@pytest.mark.asyncio
+async def test_create_and_wait_retries_a_transient_failure(settings):
+    collection = _FakeCollection(
+        [[], [], [_index("autoembed_idx", "READY"), _index("text_idx", "READY")]],
+        create_errors=[OperationFailure("transient", 8000)],
+    )
+    delays: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    lines = await create_and_wait_chunks_indexes(
+        collection, settings, create_attempts=2, sleep=fake_sleep
+    )
+
+    assert collection.created == ["autoembed_idx", "text_idx"]
+    assert delays == [2.0]
+    assert len(lines) == 2
+
+
+@pytest.mark.asyncio
+async def test_create_and_wait_raises_after_the_last_attempt(settings):
+    collection = _FakeCollection(
+        [[]],
+        create_errors=[OperationFailure("first", 8000), OperationFailure("second", 8000)],
+    )
+    delays: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    with pytest.raises(OperationFailure, match="second"):
+        await create_and_wait_chunks_indexes(
+            collection, settings, create_attempts=2, sleep=fake_sleep
+        )
+
+    assert delays == [2.0]
+    # One list per attempt, and no wait ran after the last failure.
+    assert collection.page_index == 2

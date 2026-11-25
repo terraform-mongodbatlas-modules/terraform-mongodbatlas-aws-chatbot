@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from hybrid_search.chatbot_profiles import StartupStatus
 from hybrid_search.health import IndexState
 from hybrid_search.ui.index_status import (
     failed_names,
@@ -63,3 +64,40 @@ def test_problem_message_names_the_selected_collection(query: bool):
     assert message is not None
     assert "health.autoembed_idx BUILDING" in message
     assert "chunks.autoembed_idx" not in message
+
+
+@pytest.mark.parametrize("query", [True, False])
+def test_problem_message_missing_shows_the_recreate_command(query: bool):
+    message = problem_message(_states("MISSING", "READY"), query=query, collection="chunks")
+
+    assert message is not None
+    assert "may still be starting" in message
+    assert "hybrid-search index-create --recreate" in message
+
+
+def test_problem_message_appends_the_recorded_startup_error():
+    startup = StartupStatus(outcome="failed", phase="indexes", error="model is not enabled")
+
+    message = problem_message(
+        _states("MISSING", "READY"),
+        query=True,
+        collection="chunks",
+        startup=startup,
+    )
+
+    assert message is not None
+    assert "Startup failed during indexes: model is not enabled" in message
+
+
+def test_problem_message_ignores_a_recorded_success():
+    startup = StartupStatus(outcome="ok", phase="ingest")
+
+    message = problem_message(
+        _states("MISSING", "READY"),
+        query=False,
+        collection="chunks",
+        startup=startup,
+    )
+
+    assert message is not None
+    assert "Startup failed" not in message

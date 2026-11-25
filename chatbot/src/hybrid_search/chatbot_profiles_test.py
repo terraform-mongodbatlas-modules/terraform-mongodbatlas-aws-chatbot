@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import pytest
+from pymongo.errors import OperationFailure
 
 from hybrid_search.chatbot_profiles import (
     PROFILES_COLLECTION,
     ChatbotProfile,
     DemoQuery,
+    StartupStatus,
     load_registry,
+    load_startup_status,
+    record_startup_status,
     upsert_profile,
 )
 
@@ -32,6 +36,9 @@ class _FakeCollection:
 
     async def update_one(self, filter: dict, update: dict, upsert: bool = False) -> None:
         self.updates.append({"filter": filter, "update": update, "upsert": upsert})
+
+    async def find_one(self, filter: dict) -> dict | None:
+        return next((doc for doc in self._docs if doc.get("_id") == filter.get("_id")), None)
 
 
 def _doc(name: str = "healthcare", **overrides: object) -> dict:
@@ -119,3 +126,49 @@ async def test_upsert_profile_keys_the_document_by_collection_name(
     assert collection.updates == [
         {"filter": {"_id": "healthcare"}, "update": expected_update, "upsert": True}
     ]
+
+
+async def test_record_startup_status_sets_the_subdocument_without_upsert():
+    collection = _FakeCollection([_doc()])
+    status = StartupStatus(outcome="failed", phase="indexes", error="model is not enabled")
+
+    await record_startup_status(collection, name="healthcare", status=status)
+
+    assert collection.updates == [
+        {
+            "filter": {"_id": "healthcare"},
+            "update": {"$set": {"startup": status.model_dump()}},
+            "upsert": False,
+        }
+    ]
+
+
+async def test_load_startup_status_reads_the_subdocument():
+    stored = StartupStatus(outcome="ok", phase="ingest")
+    collection = _FakeCollection([_doc(startup=stored.model_dump())])
+
+    loaded = await load_startup_status(collection, name="healthcare")
+
+    assert loaded is not None
+    assert (loaded.outcome, loaded.phase, loaded.error) == ("ok", "ingest", None)
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        _doc(),
+        _doc(startup=None),
+        _doc(startup={"outcome": "nope"}),
+        _doc(startup="not a document"),
+    ],
+)
+async def test_load_startup_status_returns_none_for_missing_or_invalid_values(doc: dict):
+    assert await load_startup_status(_FakeCollection([doc]), name="healthcare") is None
+
+
+async def test_load_startup_status_returns_none_on_a_mongo_error():
+    class _Broken:
+        async def find_one(self, filter: dict) -> dict:
+            raise OperationFailure("not authorized", 13)
+
+    assert await load_startup_status(_Broken(), name="healthcare") is None

@@ -70,19 +70,46 @@ async def _upsert_default_profile(
     )
 
 
+async def _record_startup_status(
+    registry: AsyncIOMotorCollection,
+    settings: HybridSearchSettings,
+    *,
+    status: chatbot_profiles.StartupStatus,
+) -> None:
+    # Status is a diagnostic, not a startup step: a failed write must not turn a
+    # successful index build into a failed task.
+    try:
+        await chatbot_profiles.record_startup_status(
+            registry,
+            name=settings.chunks_collection,
+            status=status,
+        )
+    except PyMongoError as exc:
+        logger.warning(f"could not record startup status: {exc}")
+
+
 async def run_startup_task(settings: HybridSearchSettings) -> None:
     client = await connect_with_retry(settings)
+    registry = profiles_collection(client, settings)
+    phase = "startup"
     try:
         collection = chunks_collection(client, settings)
         state_collection = ingest_state_collection(client, settings)
         # Not gated by the skip switches: the profile document is the default
         # profile's chips and prompt, not ingest.
-        await _upsert_default_profile(settings, profiles_collection(client, settings))
+        await _upsert_default_profile(settings, registry)
         # Honor the same switches as the CLI paths; cmd_index_create overrides
         # them on purpose, this background path must not.
         if not settings.skip_index_creation:
-            await create_and_wait_chunks_indexes(collection, settings)
+            phase = "indexes"
+            await create_and_wait_chunks_indexes(
+                collection,
+                settings,
+                recreate_failed=True,
+                create_attempts=3,
+            )
         if not settings.skip_ingest:
+            phase = "ingest"
             await ingest_dirs(
                 settings,
                 collection,
@@ -92,7 +119,18 @@ async def run_startup_task(settings: HybridSearchSettings) -> None:
     except INGEST_ERRORS as exc:
         # A background task that raises is invisible and must not take the
         # container down. CancelledError is the one exception that propagates.
-        logger.error(f"startup task failed: {exc}")
+        logger.error(f"startup task failed during {phase}: {exc}")
+        await _record_startup_status(
+            registry,
+            settings,
+            status=chatbot_profiles.StartupStatus(outcome="failed", phase=phase, error=str(exc)),
+        )
         return
+    else:
+        await _record_startup_status(
+            registry,
+            settings,
+            status=chatbot_profiles.StartupStatus(outcome="ok", phase=phase),
+        )
     finally:
         client.close()

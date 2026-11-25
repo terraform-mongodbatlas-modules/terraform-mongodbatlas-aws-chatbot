@@ -7,6 +7,7 @@ from dataclasses import dataclass
 class IndexState:
     name: str
     status: str
+    detail: str | None = None
 
 
 def build_health_payload(
@@ -18,5 +19,12 @@ def build_health_payload(
         "indexes_ready": bool(index_states)
         and all(state.status == "READY" for state in index_states),
         "data_ingested": has_chunks,
-        "indexes": [{"name": state.name, "status": state.status} for state in index_states],
+        "indexes": [_index_entry(state) for state in index_states],
     }
+
+
+def _index_entry(state: IndexState) -> dict:
+    entry: dict[str, str] = {"name": state.name, "status": state.status}
+    if state.detail:
+        entry["detail"] = state.detail
+    return entry
