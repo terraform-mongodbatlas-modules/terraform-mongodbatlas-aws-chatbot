@@ -420,3 +420,31 @@ run "codebuild_writes_into_a_managed_log_group" {
     error_message = "The CodeBuild project should write into the module-managed log group"
   }
 }
+
+run "build_artifacts_default_to_the_root_module_dir" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      terraform_data.prepare_build_dirs[0].triggers_replace.artifacts_root == path.root,
+      terraform_data.render_assets[0].triggers_replace.artifacts_root == path.root,
+    ])
+    error_message = "Generated artifacts should default to the caller's root module directory, not the module cache"
+  }
+}
+
+run "build_artifacts_dir_overrides_the_root_module_dir" {
+  command = plan
+
+  variables {
+    overrides = { build_artifacts_dir = "/tmp/mongodb-chatbot-artifacts" }
+  }
+
+  assert {
+    condition = alltrue([
+      terraform_data.prepare_build_dirs[0].triggers_replace.artifacts_root == "/tmp/mongodb-chatbot-artifacts",
+      terraform_data.render_assets[0].triggers_replace.artifacts_root == "/tmp/mongodb-chatbot-artifacts",
+    ])
+    error_message = "overrides.build_artifacts_dir should replace the default artifacts root on both build resources"
+  }
+}

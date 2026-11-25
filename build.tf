@@ -2,6 +2,13 @@
 # the primary source and the module-rendered assets tree is a secondary source.
 # A start-and-poll script waits for the build and fails the apply on a failed
 # status.
+#
+# Generated artifacts (.build/, .render/) live under `overrides.build_artifacts_dir`,
+# which defaults to ${path.root}, the caller's working directory. For a git or
+# registry module, ${path.module} resolves inside the .terraform/modules cache,
+# which `terraform init` deletes. The terraform_data resources would stay in state
+# with their local-exec provisioners already run, so the archives would look for
+# files that no longer exist.
 
 data "aws_caller_identity" "current" {}
 
@@ -77,13 +84,14 @@ resource "terraform_data" "prepare_build_dirs" {
   count = local.build_enabled ? 1 : 0
 
   triggers_replace = {
-    build_apps = join(",", sort(keys(local.build_apps)))
+    artifacts_root = local.build_artifacts_dir
+    build_apps     = join(",", sort(keys(local.build_apps)))
   }
 
   provisioner "local-exec" {
     command = join(" ", concat(
-      ["mkdir", "-p", "${path.module}/.build"],
-      [for k in sort(keys(local.build_apps)) : "${path.module}/.build/${k}"]
+      ["mkdir", "-p", "${local.build_artifacts_dir}/.build"],
+      [for k in sort(keys(local.build_apps)) : "${local.build_artifacts_dir}/.build/${k}"]
     ))
   }
 }
@@ -98,7 +106,7 @@ data "archive_file" "app" {
     each.value.dockerfile_path == null ? null : dirname(each.value.dockerfile_path),
     "${path.module}/chatbot"
   )
-  output_path = "${path.module}/.build/${each.key}/app.zip"
+  output_path = "${local.build_artifacts_dir}/.build/${each.key}/app.zip"
 
   # The vendored tree carries local build state on disk; without excludes the
   # zip is huge and non-deterministic. Patterns live in chatbot/.archiveignore.
@@ -116,6 +124,7 @@ resource "terraform_data" "render_assets" {
   count = local.chatbot_built ? 1 : 0
 
   triggers_replace = {
+    artifacts_root       = local.build_artifacts_dir
     queries              = var.queries
     document_dirs        = var.document_dirs
     assets_dir           = var.assets_dir
@@ -127,7 +136,7 @@ resource "terraform_data" "render_assets" {
     command = join(" ", [
       "python3 ${path.module}/scripts/render_assets.py",
       "--module-dir ${path.module}",
-      "--staging-dir ${path.module}/.render/assets",
+      "--staging-dir ${local.build_artifacts_dir}/.render/assets",
       "--queries-b64 ${base64encode(jsonencode(var.queries))}",
       "--document-dirs-b64 ${base64encode(jsonencode(var.document_dirs))}",
       "--skip-repo-docs ${var.skip_repo_docs ? "true" : "false"}",
@@ -144,8 +153,8 @@ data "archive_file" "assets" {
   # zip carries the `assets/` prefix. The buildspec copies the tree over the app
   # root and the Dockerfile `COPY`s `assets/`, so the prefix is what lands the
   # corpus at /app/assets/document_dirs.
-  source_dir  = "${path.module}/.render"
-  output_path = "${path.module}/.build/assets.zip"
+  source_dir  = "${local.build_artifacts_dir}/.render"
+  output_path = "${local.build_artifacts_dir}/.build/assets.zip"
 
   # The read defers to apply on the first run, after the render creates the tree.
   depends_on = [terraform_data.prepare_build_dirs, terraform_data.render_assets]
@@ -368,7 +377,7 @@ resource "terraform_data" "build" {
       "--tag ${local.image_tags[each.key]}",
       "--ecr-repo ${each.value.name}",
       "--region ${each.value.aws_region}",
-      "--out ${path.module}/.build/${each.key}/build.json",
+      "--out ${local.build_artifacts_dir}/.build/${each.key}/build.json",
     ])
   }
 }

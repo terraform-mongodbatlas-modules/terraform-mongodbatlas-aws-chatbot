@@ -19,6 +19,12 @@ locals {
   # names, or the same value to deliberately reuse names.
   resource_prefix = coalesce(var.overrides.resource_prefix, var.app_name)
 
+  # --- Build artifacts --------------------------------------------------------
+  # Root for the generated `.build/` and `.render/` trees. Defaults to the
+  # caller's working directory; `overrides.build_artifacts_dir` gives two module
+  # calls in one root separate trees.
+  build_artifacts_dir = coalesce(var.overrides.build_artifacts_dir, path.root)
+
   # The org is read from the credential, so there is no `atlas_org_id` input. It is
   # read only on the managed-project path; `overrides.project_id` skips it.
   atlas_org_id = try(data.mongodbatlas_roles_org_id.current[0].org_id, null)
