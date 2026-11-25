@@ -319,10 +319,11 @@ dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.e
 	just -f "{{justfile_directory()}}/chatbot/justfile" dump-local-env "{{terraform_dir}}" "{{region}}" "{{output}}"
 
 # Register a corpus directory as a chat profile in the deployment behind chatbot/secrets/.env.local.
-register-corpus dir:
+# Pass a second argument to use another env file, for example secrets/atlas-local.env.
+register-corpus dir env_file="secrets/.env.local":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	just -f "{{justfile_directory()}}/chatbot/justfile" register-corpus "$(cd "{{dir}}" && pwd)"
+	just -f "{{justfile_directory()}}/chatbot/justfile" register-corpus "$(cd "{{dir}}" && pwd)" "{{env_file}}"
 # LIVE SMOKE
 # Poll /health on a deployed stack. Stdlib only; reads the module output at the
 # workspace given by --module-dir, else HYBRID_SEARCH_URL.
