@@ -120,6 +120,43 @@ def test_ingested_file_display_name():
     assert item.display_name == "a.pdf"
 
 
+class _FakeResult:
+    def __init__(self, deleted_count: int = 0) -> None:
+        self.deleted_count = deleted_count
+
+
+class _FakeCursor:
+    async def to_list(self, length: object) -> list:
+        return []
+
+
+class _QueryCollection:
+    def __init__(self) -> None:
+        self.queries: list[tuple[str, object]] = []
+
+    async def delete_many(self, query: dict) -> _FakeResult:
+        self.queries.append(("delete_many", query))
+        return _FakeResult()
+
+    def aggregate(self, pipeline: list) -> _FakeCursor:
+        self.queries.append(("aggregate", pipeline))
+        return _FakeCursor()
+
+
+@pytest.mark.asyncio
+async def test_delete_all_chunks_clears_chunks_and_state():
+    collection = _QueryCollection()
+    state_collection = _QueryCollection()
+
+    await ingest_module.delete_all_chunks(
+        collection=collection,
+        state_collection=state_collection,
+    )
+
+    assert collection.queries == [("delete_many", {})]
+    assert state_collection.queries == [("delete_many", {})]
+
+
 @pytest.mark.asyncio
 async def test_ingest_file_deletes_even_when_the_new_file_has_no_chunks(tmp_path):
     collection = _FakeCollection()

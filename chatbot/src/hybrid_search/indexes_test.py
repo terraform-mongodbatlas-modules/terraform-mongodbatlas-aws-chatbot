@@ -9,6 +9,7 @@ from pymongo.errors import OperationFailure
 
 from hybrid_search.indexes import (
     autoembed_index_definition,
+    create_and_wait_chunks_indexes,
     create_chunks_indexes_if_missing,
     ensure_indexes_ready,
     format_index_ready_line,
@@ -258,3 +259,16 @@ def test_autoembed_index_definition_has_no_dimensions():
 def test_format_index_ready_line():
     line = format_index_ready_line("chunks", "autoembed_idx")
     assert line.endswith(" chunks.autoembed_idx READY")
+
+
+@pytest.mark.asyncio
+async def test_create_and_wait_chunks_indexes_returns_and_logs_the_ready_lines(settings, caplog):
+    collection = _FakeCollection([[_index("autoembed_idx", "READY"), _index("text_idx", "READY")]])
+    caplog.set_level(logging.INFO)
+
+    lines = await create_and_wait_chunks_indexes(collection, settings)
+
+    assert collection.created == []
+    assert all(line.endswith(" READY") for line in lines)
+    assert {line.split()[1] for line in lines} == {"chunks.autoembed_idx", "chunks.text_idx"}
+    assert "chunks.text_idx READY" in caplog.text

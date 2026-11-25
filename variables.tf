@@ -135,7 +135,7 @@ variable "chatbot" {
     - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
     - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
     - `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers only from the retrieved context, declines when the context is insufficient, and leads with short bullet points followed by a paragraph of details.
-    - `db_access`: the database and role the app authenticates as.
+    - `db_access`: the database and role the app authenticates as. A null `collection_name` grants the whole database, which the chat profile dropdown needs to list and serve every registered profile in it. A `collection_name` grant limits the app to the default profile.
     - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
     - `internet_egress`: allow HTTPS egress from the app security group through NAT.
     - `aws_region`: the app's AWS region. Defaults to the first entry in `regions`.

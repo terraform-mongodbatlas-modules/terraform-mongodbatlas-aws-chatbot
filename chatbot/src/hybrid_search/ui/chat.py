@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import chainlit as cl
 from pymongo.errors import PyMongoError
 
 from hybrid_search import extract as extract_module
+from hybrid_search.chatbot_profiles import DemoQuery
 from hybrid_search.indexes import index_states
 from hybrid_search.ingest import (
     delete_all_chunks,
@@ -46,6 +48,13 @@ from hybrid_search.ui.mode_router import (
     resolve_mode,
     set_ui_mode,
 )
+from hybrid_search.ui.profiles import (
+    COLLECTION_SCOPED_GRANT_MESSAGE,
+    CollectionProfile,
+    load_profile_listing,
+    rejected_profile_message,
+    resolve_profile,
+)
 from hybrid_search.ui.query_steps import run_query_with_steps
 from hybrid_search.ui.search_settings import (
     SEARCH_MODES_KEY,
@@ -80,13 +89,46 @@ if (
     cl.password_auth_callback(_password_auth_callback)
 
 
-@cl.set_starters
-async def set_starters():
-    queries = load_demo_queries(get_settings().demo_queries_path)
+def _starters(queries: Sequence[DemoQuery]) -> list[cl.Starter]:
+    # A profile's starters replace the global list, so the upload and delete
+    # commands ride along with the corpus chips.
     return [
         cl.Starter(**UPLOAD_STARTER),
         cl.Starter(**DELETE_STARTER),
-        *[cl.Starter(label=q.label, message=q.message) for q in queries],
+        *[cl.Starter(label=query.label, message=query.message) for query in queries],
+    ]
+
+
+def _profile_queries(profile: CollectionProfile) -> Sequence[DemoQuery]:
+    if profile.queries:
+        return profile.queries
+    if profile.default:
+        # Before the startup upsert writes the default document, the default
+        # profile keeps the bundled chips so the start screen is never empty.
+        return load_demo_queries(get_settings().demo_queries_path)
+    return profile.queries
+
+
+@cl.set_starters
+async def set_starters():
+    return _starters(load_demo_queries(get_settings().demo_queries_path))
+
+
+@cl.set_chat_profiles
+async def set_chat_profiles():
+    # Chainlit calls this on every /project/settings load; the listing carries
+    # its own short cache so a page load does not scan the database.
+    listing = await load_profile_listing(get_settings())
+    return [
+        cl.ChatProfile(
+            name=profile.collection,
+            display_name=profile.display_name,
+            markdown_description=profile.description or profile.display_name,
+            icon=profile.icon,
+            default=profile.default,
+            starters=_starters(_profile_queries(profile)),
+        )
+        for profile in listing.profiles
     ]
 
 
@@ -98,15 +140,33 @@ async def on_chat_start():
     try:
         load_demo_queries(settings.demo_queries_path)
         client = get_client(settings)
-        collection = chunks_collection(client, settings)
-        cl.user_session.set("settings", settings)
+        listing = await load_profile_listing(settings, client=client)
+        resolution = resolve_profile(cl.user_session.get("chat_profile"), listing)
+        # One settings copy carries the selection: every handler already reads
+        # settings, collection, and state_collection from the session.
+        session_settings = settings.model_copy(
+            update={"chunks_collection": resolution.profile.collection}
+        )
+        collection = chunks_collection(client, session_settings)
+        if resolution.profile.system_prompt:
+            session_settings = session_settings.model_copy(
+                update={"rag_system_prompt": resolution.profile.system_prompt}
+            )
+        cl.user_session.set("settings", session_settings)
         cl.user_session.set("client", client)
         cl.user_session.set("collection", collection)
-        cl.user_session.set("state_collection", ingest_state_collection(client, settings))
+        cl.user_session.set("profile", resolution.profile)
+        cl.user_session.set("state_collection", ingest_state_collection(client, session_settings))
+        if listing.auth_limited:
+            await cl.Message(content=COLLECTION_SCOPED_GRANT_MESSAGE).send()
+        if resolution.rejected_name:
+            await cl.Message(content=rejected_profile_message(resolution)).send()
         # Index creation lives in the app startup task; creating here too would
         # race it on a fresh deployment. Report state instead.
-        states = await index_states(collection, settings)
-        if message := problem_message(states, query=False):
+        states = await index_states(collection, session_settings)
+        if message := problem_message(
+            states, query=False, collection=session_settings.chunks_collection
+        ):
             await cl.Message(content=message).send()
     except (OSError, ValueError, RuntimeError, TypeError, PyMongoError) as exc:
         logger.exception("Startup failed")
@@ -184,7 +244,12 @@ async def on_message(message: cl.Message):
 
 
 async def _show_demo_questions() -> None:
-    queries = load_demo_queries(get_settings().demo_queries_path)
+    profile = cl.user_session.get("profile")
+    queries = (
+        profile.queries
+        if profile is not None and profile.queries
+        else load_demo_queries(get_settings().demo_queries_path)
+    )
     actions = [
         cl.Action(
             name=DEMO_ACTION_NAME,
@@ -215,7 +280,7 @@ async def _handle_query(query: str):
     collection = cl.user_session.get("collection")
     modes = cl.user_session.get(SEARCH_MODES_KEY, DEFAULT)
     states = await index_states(collection, settings)
-    if message := problem_message(states, query=True):
+    if message := problem_message(states, query=True, collection=settings.chunks_collection):
         await cl.Message(content=message).send()
         return
     # Surface the failure in the UI instead of a blank reply.

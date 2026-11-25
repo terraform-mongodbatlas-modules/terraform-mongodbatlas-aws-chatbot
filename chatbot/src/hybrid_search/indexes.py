@@ -106,6 +106,22 @@ async def create_chunks_indexes_if_missing(
         )
 
 
+async def create_and_wait_chunks_indexes(
+    collection: AsyncIOMotorCollection,
+    settings: HybridSearchSettings,
+) -> list[str]:
+    """Create the missing chunks indexes, wait for READY, and log each one."""
+    await create_chunks_indexes_if_missing(collection, settings)
+    ready = await wait_chunks_indexes_ready(collection, settings)
+    lines = [
+        format_index_ready_line(collection_name, index_name)
+        for collection_name, index_name, _status in ready
+    ]
+    for line in lines:
+        logger.info(line)
+    return lines
+
+
 async def index_states(
     collection: AsyncIOMotorCollection,
     settings: HybridSearchSettings,

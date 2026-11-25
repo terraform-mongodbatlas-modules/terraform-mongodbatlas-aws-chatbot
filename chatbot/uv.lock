@@ -880,6 +880,7 @@ dependencies = [
     { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "google", "openai", "retries"] },
     { name = "pydantic-settings" },
     { name = "pymongo" },
+    { name = "pyyaml" },
     { name = "typer" },
 ]
 
@@ -890,7 +891,6 @@ aws = [
 ui = [
     { name = "chainlit" },
     { name = "pymupdf" },
-    { name = "pyyaml" },
     { name = "uvicorn" },
 ]
 
@@ -912,7 +912,7 @@ requires-dist = [
     { name = "pymongo" },
     { name = "pymongo", extras = ["aws"], marker = "extra == 'aws'" },
     { name = "pymupdf", marker = "extra == 'ui'" },
-    { name = "pyyaml", marker = "extra == 'ui'" },
+    { name = "pyyaml" },
     { name = "typer" },
     { name = "uvicorn", marker = "extra == 'ui'" },
 ]

@@ -4,10 +4,10 @@ This guide is experimental. It covers inputs and workflows that the examples do 
 
 ## Content
 
-- **`queries`:** the starter questions, an ordered list of `{ label, message }` objects. Each `label` is the chip shown in the UI and each `message` is the question it sends. The chips appear in list order. Empty keeps the app's bundled questions.
+- **`queries`:** the starter questions, an ordered list of `{ label, message }` objects. Each `label` is the chip shown in the UI and each `message` is the question it sends. The chips appear in list order. Empty keeps the app's bundled questions. At startup the task writes the list into the default profile document in `_chatbot_profiles`, which is what the app reads.
 - **`document_dirs`:** the documents to ingest. A bare name resolves to the bundled corpus; a path or an absolute path is used as-is.
 - **`assets_dir`:** a directory mirroring the app's `assets/` tree, copied over the rendered defaults. Replace `.chainlit/config.toml`, `chainlit.md`, and `public/` to rebrand.
-- **`chatbot.system_prompt`:** the RAG system prompt the app answers with.
+- **`chatbot.system_prompt`:** the RAG system prompt the app answers with. At startup the task writes it into the default profile document in `_chatbot_profiles`.
 
 ## The app
 
@@ -52,6 +52,58 @@ queries = [
 ```
 
 The chips appear in list order. Reorder or drop entries to fit your audience.
+
+## A second corpus in one deployment
+
+One deployment can serve more than one corpus. Each corpus is a chunks collection in `MONGODB_DATABASE`, and the visitor picks one from the chat profile dropdown on the start screen. The default collection keeps the bundled corpus. Registering another collection adds a profile next to it.
+
+### The profile registry
+
+The `_chatbot_profiles` collection holds one document per selectable chunks collection, and the document's `_id` is that collection's name. A collection is selectable only when the registry holds a document for it, so the registry doubles as the allowlist. The configured default collection is always selectable, even before its document exists, and falls back to the bundled questions and `RAG_SYSTEM_PROMPT`.
+
+Because the profiles live in their own collection, a chunks collection holds only chunks. Search never returns a profile, and "Delete all" never deletes one.
+
+A profile document carries:
+
+- **`display_name`:** the label in the dropdown.
+- **`description`:** the tooltip under the label.
+- **`icon`:** an image URL the app serves, for example `/public/logo_light.svg`.
+- **`queries`:** the starter chips, an ordered list of `{ label, message }`.
+- **`system_prompt`:** the answer prompt for this corpus.
+
+The startup task writes the default collection's document from `queries` and `chatbot.system_prompt`. It sets `display_name` only when it creates the document, so a label you registered survives a restart. A profile without `system_prompt` answers with the module's `RAG_SYSTEM_PROMPT`. The default profile without `queries` shows the bundled questions, and another profile without `queries` shows only the upload and delete starters.
+
+### Register a collection
+
+Run the CLI against the deployed database. The local UI section writes `secrets/.env.local` from the deployed app secret, and that file carries `MONGODB_URI`.
+
+```sh
+cd chatbot
+set -a; . secrets/.env.local; set +a
+uv run --extra ui hybrid-search register \
+  --collection healthcare \
+  --display-name "Springfield Health" \
+  --description "Fictional member-services corpus with four family personas" \
+  --demo-queries ../examples/healthcare/queries.yaml \
+  --system-prompt ../examples/healthcare/system_prompt.txt \
+  --dir ../examples/healthcare/docs
+```
+
+The command creates the two Atlas search indexes on the collection, writes the profile document in `_chatbot_profiles`, and ingests the directory into a per-collection ingest state (`healthcare_ingest_state`). `--demo-queries`, `--system-prompt`, and `--dir` are optional. Omitting a file keeps whatever the document already held, and omitting `--dir` skips ingest.
+
+The collection name must start with a letter or digit and use only letters, digits, underscores, and hyphens. The registry's own name starts with an underscore, so it can never be registered or selected.
+
+### Pick the corpus
+
+Reload the app and choose the profile on the start screen. The selector appears only when more than one collection is registered, so a single-corpus deployment looks the same as before. The server caches the listing for 30 seconds, so a registration can take a page reload or two to appear.
+
+The database user needs the module's default database-wide `readWrite` grant to read `_chatbot_profiles` and every registered collection. Setting `db_access.collection_name` narrows the user to one collection, so the app cannot read the registry and shows only the default profile.
+
+To rename the default profile, register the default collection with a label. The startup write only sets the label when it creates the document, so the name persists.
+
+```sh
+uv run --extra ui hybrid-search register --collection chunks --display-name "Product docs"
+```
 
 ## Landing Zone modules
 

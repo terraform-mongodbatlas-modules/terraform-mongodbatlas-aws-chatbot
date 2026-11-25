@@ -4,22 +4,14 @@ from enum import StrEnum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+
+from hybrid_search.chatbot_profiles import DemoQueriesFile, DemoQuery
 
 
 class Mode(StrEnum):
     INGEST = "ingest"
     DELETE = "delete"
     DEMO = "demo"
-
-
-class DemoQuery(BaseModel):
-    label: str
-    message: str
-
-
-class DemoQueriesFile(BaseModel):
-    queries: list[DemoQuery] = Field(min_length=1)
 
 
 INGEST_COMMAND_ID = "Ingest"
@@ -71,6 +63,10 @@ def load_demo_queries(path: Path) -> list[DemoQuery]:
         data = yaml.safe_load(path.read_text())
     except yaml.YAMLError as exc:
         raise ValueError(f"Invalid demo queries YAML in {path}: {exc}") from exc
+    # A bare list is what the healthcare example's queries.yaml holds, because
+    # the module's yamldecode consumes it directly.
+    if isinstance(data, list):
+        data = {"queries": data}
     return DemoQueriesFile.model_validate(data).queries
 
 

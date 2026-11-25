@@ -9,6 +9,7 @@ dependencies = [
     "pydantic-ai-slim[anthropic,bedrock,google,openai,retries]",
     "pydantic-settings",
     "pymongo",
+    "pyyaml",
     "typer",
 ]
 
@@ -17,7 +18,7 @@ hybrid-search = "hybrid_search.cli.app:main"
 
 [project.optional-dependencies]
 aws = ["pymongo[aws]"]
-ui = ["chainlit", "pymupdf", "pyyaml", "uvicorn"]
+ui = ["chainlit", "pymupdf", "uvicorn"]
 
 [dependency-groups]
 dev = ["atlas-local-lib-py", "pytest", "pytest-asyncio", "ruff"]

@@ -1,0 +1,11 @@
+```release-note:enhancement
+module: Lets a visitor pick a registered chunks collection from a chat profile dropdown, with the default profile keeping the bundled corpus behavior
+```
+
+```release-note:note
+module: Stores ingest state per chunks collection (`chunks_ingest_state`) so two profiles do not skip each other's files; the first start after upgrade re-ingests every document and the old `ingest_state` collection can be dropped
+```
+
+```release-note:enhancement
+module: Adds a `_chatbot_profiles` registry with one document per chat profile, storing that corpus's label, demo questions, and system prompt, plus `hybrid-search register` to register a collection
+```

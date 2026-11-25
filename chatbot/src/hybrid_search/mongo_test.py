@@ -3,9 +3,15 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import certifi
+import pytest
 from pydantic import SecretStr
 
-from hybrid_search.mongo import chunks_collection, get_client
+from hybrid_search.mongo import (
+    chunks_collection,
+    get_client,
+    ingest_state_collection,
+    ingest_state_collection_name,
+)
 from hybrid_search.settings import HybridSearchSettings
 
 
@@ -65,3 +71,31 @@ def test_get_client_tls_parameter_overrides_settings():
     with patch("hybrid_search.mongo.AsyncIOMotorClient") as client:
         get_client(_settings(mongodb_tls=False), tls=True)
     assert client.call_args.kwargs["tlsCAFile"] == certifi.where()
+
+
+@pytest.mark.parametrize(
+    ("chunks", "expected"),
+    [
+        ("chunks", "chunks_ingest_state"),
+        ("health", "health_ingest_state"),
+        ("my-corpus", "my-corpus_ingest_state"),
+    ],
+)
+def test_ingest_state_collection_name_is_per_chunks_collection(chunks: str, expected: str):
+    assert ingest_state_collection_name(chunks) == expected
+
+
+def test_ingest_state_collection_follows_the_chunks_collection():
+    settings = _settings(chunks_collection="health")
+
+    class DB:
+        def __getitem__(self, name: str) -> str:
+            return f"db.{name}"
+
+    class Client:
+        def __getitem__(self, name: str) -> DB:
+            assert name == settings.mongodb_database
+            return DB()
+
+    coll = ingest_state_collection(Client(), settings)
+    assert coll == "db.health_ingest_state"

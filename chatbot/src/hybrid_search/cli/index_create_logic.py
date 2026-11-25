@@ -5,11 +5,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from hybrid_search.indexes import (
-    create_chunks_indexes_if_missing,
-    format_index_ready_line,
-    wait_chunks_indexes_ready,
-)
+from hybrid_search.indexes import create_and_wait_chunks_indexes
 from hybrid_search.mongo import chunks_collection, get_client
 from hybrid_search.settings import HybridSearchSettings
 
@@ -34,11 +30,7 @@ async def _index_create_async(input: IndexCreateInput) -> IndexCreateResult:
     client = get_client(settings)
     try:
         collection = chunks_collection(client, settings)
-        await create_chunks_indexes_if_missing(collection, settings)
-        ready = await wait_chunks_indexes_ready(collection, settings)
-        lines = [format_index_ready_line(coll, name) for coll, name, _ in ready]
-        for line in lines:
-            logger.info(line)
+        lines = await create_and_wait_chunks_indexes(collection, settings)
         return IndexCreateResult(ready_lines=lines)
     except (TimeoutError, RuntimeError) as exc:
         logger.error(f"index create failed: {exc}")

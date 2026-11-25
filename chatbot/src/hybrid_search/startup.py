@@ -4,13 +4,20 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 from pymongo.errors import PyMongoError
 
+from hybrid_search import chatbot_profiles
 from hybrid_search.cli.ingest_logic import INGEST_ERRORS, ingest_dirs
-from hybrid_search.indexes import create_chunks_indexes_if_missing, wait_chunks_indexes_ready
-from hybrid_search.mongo import chunks_collection, get_client, ingest_state_collection
+from hybrid_search.indexes import create_and_wait_chunks_indexes
+from hybrid_search.mongo import (
+    chunks_collection,
+    get_client,
+    ingest_state_collection,
+    profiles_collection,
+)
 from hybrid_search.settings import HybridSearchSettings
+from hybrid_search.ui.demo import load_demo_queries
 
 logger = logging.getLogger(__name__)
 
@@ -44,16 +51,37 @@ async def connect_with_retry(
     raise RuntimeError(msg)
 
 
+async def _upsert_default_profile(
+    settings: HybridSearchSettings,
+    registry: AsyncIOMotorCollection,
+) -> None:
+    set_fields: dict[str, object] = {"system_prompt": settings.rag_system_prompt}
+    try:
+        queries = load_demo_queries(settings.demo_queries_path)
+    except (OSError, ValueError) as exc:
+        logger.warning(f"startup profile: could not read demo queries: {exc}")
+    else:
+        set_fields["queries"] = [query.model_dump() for query in queries]
+    await chatbot_profiles.upsert_profile(
+        registry,
+        name=settings.chunks_collection,
+        set_fields=set_fields,
+        insert_fields={"display_name": settings.chunks_collection},
+    )
+
+
 async def run_startup_task(settings: HybridSearchSettings) -> None:
     client = await connect_with_retry(settings)
     try:
         collection = chunks_collection(client, settings)
         state_collection = ingest_state_collection(client, settings)
+        # Not gated by the skip switches: the profile document is the default
+        # profile's chips and prompt, not ingest.
+        await _upsert_default_profile(settings, profiles_collection(client, settings))
         # Honor the same switches as the CLI paths; cmd_index_create overrides
         # them on purpose, this background path must not.
         if not settings.skip_index_creation:
-            await create_chunks_indexes_if_missing(collection, settings)
-            await wait_chunks_indexes_ready(collection, settings)
+            await create_and_wait_chunks_indexes(collection, settings)
         if not settings.skip_ingest:
             await ingest_dirs(
                 settings,
