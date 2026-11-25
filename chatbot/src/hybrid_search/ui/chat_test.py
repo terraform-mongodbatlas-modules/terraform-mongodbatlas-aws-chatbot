@@ -5,10 +5,12 @@ from pydantic import SecretStr
 
 import hybrid_search.ui.chat as chat_module
 from hybrid_search.chatbot_profiles import DemoQuery
+from hybrid_search.generate import Turn
 from hybrid_search.ingest import IngestedFile
 from hybrid_search.settings import DEFAULT_RAG_SYSTEM_PROMPT, HybridSearchSettings
 from hybrid_search.ui.demo import Mode
 from hybrid_search.ui.profiles import CollectionProfile, ProfileListing
+from hybrid_search.search_modes import SearchModes
 
 
 class _FakeSession:
@@ -220,7 +222,7 @@ def _patch_startup(
     async def fake_index_states(collection: object, settings: object) -> list:
         return []
 
-    async def fake_send_default_settings() -> None:
+    async def fake_send_default_settings(*args: object, **kwargs: object) -> None:
         return None
 
     monkeypatch.setattr(chat_module, "get_settings", lambda: settings)
@@ -422,3 +424,98 @@ async def test_show_demo_questions_uses_the_selected_profiles_queries(
     await chat_module._show_demo_questions()
 
     assert [action.label for action in _DEMO_ASKS[0]] == expected_labels
+
+
+def _patch_query_path(monkeypatch, run_query_with_steps) -> None:
+    class _FakeMessage:
+        def __init__(self, content: str = "") -> None:
+            self.content = content
+
+        async def send(self) -> None:
+            return None
+
+    async def fake_index_states(collection, settings):
+        return []
+
+    monkeypatch.setattr(chat_module, "index_states", fake_index_states)
+    monkeypatch.setattr(chat_module, "problem_message", lambda states, query, collection: None)
+    monkeypatch.setattr(chat_module, "run_query_with_steps", run_query_with_steps)
+    monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
+
+
+def _query_settings(**overrides: object) -> HybridSearchSettings:
+    return HybridSearchSettings(mongodb_uri=SecretStr("mongodb://localhost"), **overrides)
+
+
+@pytest.mark.asyncio
+async def test_handle_query_remembers_turns_for_the_next_question(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", _query_settings(llm_history_turns=1))
+    session.set("collection", object())
+    seen: list[list[Turn]] = []
+
+    async def fake_run_query_with_steps(query, **kwargs):
+        seen.append(list(kwargs["history"]))
+        return type("Result", (), {"answer": f"answer to {query}", "source_files": []})()
+
+    _patch_query_path(monkeypatch, fake_run_query_with_steps)
+
+    await chat_module._handle_query("first")
+    await chat_module._handle_query("second")
+    await chat_module._handle_query("third")
+
+    # llm_history_turns = 1: each question sees only the turn before it.
+    assert seen == [
+        [],
+        [Turn(question="first", answer="answer to first")],
+        [Turn(question="second", answer="answer to second")],
+    ]
+
+
+@pytest.mark.asyncio
+async def test_handle_query_does_not_remember_a_reply_without_an_answer(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", _query_settings())
+    session.set("collection", object())
+
+    async def fake_run_query_with_steps(query, **kwargs):
+        # Retrieval-only mode: the hits are shown, no answer is written.
+        return type("Result", (), {"answer": None, "source_files": ["a.md"]})()
+
+    _patch_query_path(monkeypatch, fake_run_query_with_steps)
+
+    await chat_module._handle_query("first")
+
+    assert session.get(chat_module.HISTORY_KEY) is None
+
+
+@pytest.mark.asyncio
+async def test_on_chat_start_starts_a_profile_without_earlier_turns(monkeypatch):
+    # Choosing another profile starts a new chat session, and a session's turns
+    # live only in it: nothing from one collection's chat reaches another's.
+    session, _sent = _patch_startup(monkeypatch, listing=LISTING)
+    session.set("chat_profile", "health")
+
+    await chat_module.on_chat_start()
+
+    assert session.get(chat_module.HISTORY_KEY) is None
+
+
+@pytest.mark.parametrize("rerank_enabled", [True, False])
+@pytest.mark.asyncio
+async def test_on_chat_start_starts_the_gear_from_the_deployments_settings(
+    monkeypatch, rerank_enabled
+):
+    _session, _sent = _patch_startup(monkeypatch, listing=LISTING)
+    settings = _query_settings(rerank_enabled=rerank_enabled, rewrite_followups=False)
+    started: list[tuple[SearchModes, bool]] = []
+
+    async def fake_send_default_settings(modes: SearchModes, *, rerank_available: bool) -> None:
+        started.append((modes, rerank_available))
+
+    monkeypatch.setattr(chat_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(chat_module, "send_default_settings", fake_send_default_settings)
+
+    await chat_module.on_chat_start()
+
+    assert started == [(SearchModes(rewrite=False, rerank=rerank_enabled), rerank_enabled)]

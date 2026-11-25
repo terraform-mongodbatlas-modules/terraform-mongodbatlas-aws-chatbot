@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import SecretStr
 
+from hybrid_search.generate import GenerateResult, Turn
 from hybrid_search.search import RetrievalPipeline, SearchResult
 from hybrid_search.search_modes import SearchModes
 from hybrid_search.settings import HybridSearchSettings
@@ -71,3 +72,24 @@ async def test_answer_or_format_skips_llm_when_disabled():
 
     assert result.answer is None
     assert result.source_files == ["a.pdf"]
+
+
+@pytest.mark.asyncio
+async def test_answer_or_format_passes_history_to_the_answer():
+    search_result = SearchResult(
+        references=_REFERENCES,
+        pipeline=RetrievalPipeline.RANK_FUSION,
+    )
+    history = [Turn(question="earlier question", answer="earlier answer")]
+    generate = AsyncMock(return_value=GenerateResult(answer="generated"))
+    with patch(f"{_MODULE}.generate_answer", generate):
+        result = await query_logic.answer_or_format(
+            "risk",
+            search_result,
+            modes=SearchModes(llm=True),
+            settings=_SETTINGS,
+            history=history,
+        )
+
+    assert generate.await_args.kwargs["history"] == history
+    assert result.answer == "generated"

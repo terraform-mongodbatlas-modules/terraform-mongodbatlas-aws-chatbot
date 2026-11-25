@@ -8,6 +8,10 @@ This guide is experimental. It covers inputs and workflows that the examples do 
 - **`document_dirs`:** the documents to ingest. A bare name resolves to the bundled corpus; a path or an absolute path is used as-is.
 - **`assets_dir`:** a directory mirroring the app's `assets/` tree, copied over the rendered defaults. Replace `.chainlit/config.toml`, `chainlit.md`, and `public/` to rebrand.
 - **`chatbot.system_prompt`:** the RAG system prompt the app answers with. At startup the task writes it into the default profile document in `_chatbot_profiles`.
+- **`chatbot.llm_max_snippets`:** how many of the retrieved chunks the model reads for each answer. The app default is 5 and the search returns 20.
+- **`chatbot.llm_history_turns`:** how many earlier turns of the chat the model sees with each new question, so a follow-up can refer back. The app default is 10; 0 turns it off, and with it the follow-up rewriting.
+- **`chatbot.rewrite_followups`:** whether the model restates a follow-up as a standalone question before the search runs. The app default is true. It costs one extra model call per follow-up and none on the first message of a chat. A user can flip it per session with the **Rewrite follow-ups** switch in the chat settings.
+- **`chatbot.rerank_results`, `chatbot.rerank_candidates`:** reorder the retrieved candidates with Atlas native reranking (`$rerank`) before the answer. Off by default: the cluster needs MongoDB 9.0 or later, and Native Reranking has to be enabled in the Atlas project settings. When on, the chat gets a **Rerank results** switch. The app reads 80 candidates by default.
 
 ## The app
 

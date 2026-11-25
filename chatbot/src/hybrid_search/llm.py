@@ -16,12 +16,23 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from hybrid_search.settings import HybridSearchSettings
 
 
-def build_agent(settings: HybridSearchSettings) -> Agent[None, str]:
-    return Agent(_build_model(settings), system_prompt=settings.rag_system_prompt, output_type=str)
+def build_agent(
+    settings: HybridSearchSettings, *, system_prompt: str | None = None
+) -> Agent[None, str]:
+    # None is the RAG system prompt, the one the answers are written with.
+    if system_prompt is None:
+        system_prompt = settings.rag_system_prompt
+    return Agent(_build_model(settings), system_prompt=system_prompt, output_type=str)
 
 
 async def run_rag_prompt(prompt: str, *, settings: HybridSearchSettings) -> str:
     result = await build_agent(settings).run(prompt)
+    return result.output
+
+
+async def run_prompt(prompt: str, *, settings: HybridSearchSettings, system_prompt: str) -> str:
+    """Run a prompt that is not an answer, under its own system prompt."""
+    result = await build_agent(settings, system_prompt=system_prompt).run(prompt)
     return result.output
 
 

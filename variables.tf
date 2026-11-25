@@ -135,20 +135,30 @@ variable "chatbot" {
     - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
     - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
     - `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers only from the retrieved context, declines when the context is insufficient, and leads with short bullet points followed by a paragraph of details.
+    - `llm_max_snippets`: how many of the retrieved chunks the model reads for each answer. Null keeps the app default of 5. The search returns 20 chunks, so 20 sends everything retrieved.
+    - `llm_history_turns`: how many earlier question-and-answer turns of the chat session the model sees with each new question, so a follow-up can refer back. Null keeps the app default of 10; 0 sends each question on its own, which also leaves `rewrite_followups` nothing to work from.
+    - `rewrite_followups`: the search only sees the text it is given, so a follow-up such as "and what will it cost?" finds little. True has the model restate a follow-up as a standalone question first, and the search runs on that; the chat shows what it searched for. One extra model call per follow-up, none on the first message of a chat. Null keeps the app default of true. This is the starting value of the chat's "Rewrite follow-ups" switch, which a user can flip per session.
+    - `rerank_results`: true reorders the retrieved candidates with Atlas native reranking (`$rerank`) before the answer, which recovers an exact match that rank fusion buried and a paraphrase that keyword search missed. Needs MongoDB 9.0 or later on the cluster and Native Reranking enabled in the Atlas project settings; the module does not turn that setting on. Null keeps the app default of false. When true, the chat shows a "Rerank results" switch, on at the start of each chat.
+    - `rerank_candidates`: how many retrieved candidates the reranker reads, from 1 to 1000. Null keeps the app default of 80. More candidates find more and take longer.
     - `db_access`: the database and role the app authenticates as. A null `collection_name` grants the whole database, which the chat profile dropdown needs to list and serve every registered profile in it. A `collection_name` grant limits the app to the default profile.
     - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
     - `internet_egress`: allow HTTPS egress from the app security group through NAT.
     - `aws_region`: the app's AWS region. Defaults to the first entry in `regions`.
   EOT
   type = object({
-    enabled         = optional(bool, true)
-    image_url       = optional(string)
-    dockerfile_path = optional(string)
-    ecr             = optional(bool)
-    container_size  = optional(string, "small")
-    task_cpu        = optional(string)
-    task_memory     = optional(string)
-    system_prompt   = optional(string)
+    enabled           = optional(bool, true)
+    image_url         = optional(string)
+    dockerfile_path   = optional(string)
+    ecr               = optional(bool)
+    container_size    = optional(string, "small")
+    task_cpu          = optional(string)
+    task_memory       = optional(string)
+    system_prompt     = optional(string)
+    llm_max_snippets  = optional(number)
+    llm_history_turns = optional(number)
+    rewrite_followups = optional(bool)
+    rerank_results    = optional(bool)
+    rerank_candidates = optional(number)
     db_access = optional(object({
       database_name   = optional(string, "hybrid_search")
       role_name       = optional(string, "readWrite")
@@ -192,6 +202,30 @@ variable "chatbot" {
       try(var.chatbot.ecr, null) != false
     )
     error_message = "chatbot.ecr cannot be false when the chatbot image is module-built; leave it null or true, or set image_url."
+  }
+
+  validation {
+    condition = (
+      var.chatbot.llm_max_snippets == null ? true :
+      var.chatbot.llm_max_snippets >= 1 && floor(var.chatbot.llm_max_snippets) == var.chatbot.llm_max_snippets
+    )
+    error_message = "chatbot.llm_max_snippets must be a whole number of at least 1."
+  }
+
+  validation {
+    condition = (
+      var.chatbot.llm_history_turns == null ? true :
+      var.chatbot.llm_history_turns >= 0 && floor(var.chatbot.llm_history_turns) == var.chatbot.llm_history_turns
+    )
+    error_message = "chatbot.llm_history_turns must be a whole number of at least 0."
+  }
+
+  validation {
+    condition = (
+      var.chatbot.rerank_candidates == null ? true :
+      var.chatbot.rerank_candidates >= 1 && var.chatbot.rerank_candidates <= 1000 && floor(var.chatbot.rerank_candidates) == var.chatbot.rerank_candidates
+    )
+    error_message = "chatbot.rerank_candidates must be a whole number from 1 to 1000."
   }
 }
 

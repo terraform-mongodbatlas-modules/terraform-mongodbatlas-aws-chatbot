@@ -48,3 +48,16 @@ def test_build_agent_uses_configured_system_prompt(monkeypatch: pytest.MonkeyPat
     )
     agent = build_agent(settings)
     assert agent._system_prompts == ("Answer with a single sentence.",)
+
+
+def test_build_agent_takes_another_system_prompt_for_a_call_that_is_not_an_answer(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("AWS_REGION", "us-east-1")
+    settings = HybridSearchSettings(
+        mongodb_uri=SecretStr("mongodb://localhost"),
+        llm_provider="bedrock",
+        rag_system_prompt="Answer with a single sentence.",
+    )
+    agent = build_agent(settings, system_prompt="Rewrite the question.")
+    assert agent._system_prompts == ("Rewrite the question.",)
