@@ -89,9 +89,10 @@ resource "terraform_data" "prepare_build_dirs" {
   }
 
   provisioner "local-exec" {
+    environment = { ARTIFACTS_ROOT = local.build_artifacts_dir }
     command = join(" ", concat(
-      ["mkdir", "-p", "${local.build_artifacts_dir}/.build"],
-      [for k in sort(keys(local.build_apps)) : "${local.build_artifacts_dir}/.build/${k}"]
+      ["mkdir", "-p", "\"$ARTIFACTS_ROOT/.build\""],
+      [for k in sort(keys(local.build_apps)) : "\"$ARTIFACTS_ROOT/.build/${k}\""]
     ))
   }
 }
@@ -133,10 +134,11 @@ resource "terraform_data" "render_assets" {
   }
 
   provisioner "local-exec" {
+    environment = { ARTIFACTS_ROOT = local.build_artifacts_dir }
     command = join(" ", [
       "python3 ${path.module}/scripts/render_assets.py",
       "--module-dir ${path.module}",
-      "--staging-dir ${local.build_artifacts_dir}/.render/assets",
+      "--staging-dir \"$ARTIFACTS_ROOT/.render/assets\"",
       "--queries-b64 ${base64encode(jsonencode(var.queries))}",
       "--document-dirs-b64 ${base64encode(jsonencode(var.document_dirs))}",
       "--skip-repo-docs ${var.skip_repo_docs ? "true" : "false"}",
@@ -371,13 +373,14 @@ resource "terraform_data" "build" {
   depends_on = [aws_codebuild_project.image]
 
   provisioner "local-exec" {
+    environment = { ARTIFACTS_ROOT = local.build_artifacts_dir }
     command = join(" ", [
       "python3 ${path.module}/scripts/start_build.py",
       "--project ${aws_codebuild_project.image[each.key].name}",
       "--tag ${local.image_tags[each.key]}",
       "--ecr-repo ${each.value.name}",
       "--region ${each.value.aws_region}",
-      "--out ${local.build_artifacts_dir}/.build/${each.key}/build.json",
+      "--out \"$ARTIFACTS_ROOT/.build/${each.key}/build.json\"",
     ])
   }
 }

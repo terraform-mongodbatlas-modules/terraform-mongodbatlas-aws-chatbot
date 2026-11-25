@@ -426,6 +426,14 @@ run "build_artifacts_default_to_the_root_module_dir" {
 
   assert {
     condition = alltrue([
+      contains(local.archive_excludes, "**/.build"),
+      contains(local.archive_excludes, "**/.render"),
+    ])
+    error_message = "App archives must exclude generated artifacts at every depth, including nested override directories"
+  }
+
+  assert {
+    condition = alltrue([
       terraform_data.prepare_build_dirs[0].triggers_replace.artifacts_root == path.root,
       terraform_data.render_assets[0].triggers_replace.artifacts_root == path.root,
     ])
