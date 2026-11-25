@@ -55,6 +55,21 @@ def test_explicit_paths_win(tmp_path: Path):
     assert manifest.docs == [(tmp_path / "one").resolve(), (tmp_path / "two").resolve()]
 
 
+def test_relative_corpus_dir_resolves_convention_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    corpus = tmp_path / "healthcare"
+    _write(corpus, MANIFEST_NAME, "collection: c\ndisplay_name: C\n")
+    queries = _write(corpus, DEFAULT_QUERIES, "- label: Marge\n  message: What is due?\n")
+    prompt = _write(corpus, DEFAULT_SYSTEM_PROMPT, "Answer as C.")
+    monkeypatch.chdir(tmp_path)
+
+    manifest = load_manifest(Path("healthcare"))
+
+    assert manifest.queries == queries.resolve()
+    assert manifest.system_prompt == prompt.resolve()
+
+
 def test_missing_convention_files_are_left_out(tmp_path: Path):
     _write(tmp_path, MANIFEST_NAME, "collection: c\ndisplay_name: C\n")
 

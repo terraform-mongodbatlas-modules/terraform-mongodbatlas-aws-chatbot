@@ -40,19 +40,24 @@ dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.e
     echo
     echo "Open http://localhost:8001"
 
-# Register a corpus directory as a chat profile. Needs secrets/.env.local from dump-local-env.
+# Register a corpus directory as a chat profile. Needs an env file from dump-local-env.
 # The directory holds corpus.yaml and, by default, queries.yaml, system_prompt.txt, and docs/.
-register-corpus dir:
+# env_file defaults to the deployment's secrets/.env.local; pass secrets/atlas-local.env
+# to register into the local Atlas Local bed instead.
+register-corpus dir env_file="secrets/.env.local":
     #!/usr/bin/env bash
     set -euo pipefail
-    env_file="{{ justfile_directory() }}/secrets/.env.local"
-    if [[ ! -f "${env_file}" ]]; then
-      echo "missing ${env_file}; run: just dump-local-env terraform_dir=<terraform workspace>" >&2
+    env_path="{{ env_file }}"
+    if [[ "${env_path}" != /* ]]; then
+      env_path="{{ justfile_directory() }}/${env_path}"
+    fi
+    if [[ ! -f "${env_path}" ]]; then
+      echo "missing ${env_path}; run: just dump-local-env terraform_dir=<terraform workspace>" >&2
       exit 1
     fi
     corpus_dir="$(cd "{{ dir }}" && pwd)"
     set -a
-    . "${env_file}"
+    . "${env_path}"
     set +a
     cd "{{ justfile_directory() }}"
     uv run --extra ui hybrid-search register-corpus --corpus "${corpus_dir}"

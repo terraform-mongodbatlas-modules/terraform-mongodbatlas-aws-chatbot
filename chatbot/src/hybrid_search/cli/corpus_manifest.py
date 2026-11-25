@@ -66,10 +66,13 @@ def load_manifest(corpus_dir: Path) -> CorpusManifest:
 
 def _optional_file(base: Path, path: Path | None, default_name: str) -> Path | None:
     """Resolve ``path``, or the convention file when the field is omitted."""
-    candidate = base / default_name if path is None else path
-    if path is None and not candidate.is_file():
-        return None
-    return _absolute(base, candidate)
+    if path is not None:
+        return _absolute(base, path)
+    # Resolve the convention path directly: it already carries ``base``, so
+    # passing it back through ``_absolute`` would join ``base`` twice when the
+    # caller gave a relative corpus directory.
+    convention = base / default_name
+    return convention.resolve() if convention.is_file() else None
 
 
 def _docs(base: Path, docs: list[Path] | None) -> list[Path]:
