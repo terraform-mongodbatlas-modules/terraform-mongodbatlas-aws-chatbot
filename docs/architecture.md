@@ -45,8 +45,8 @@ The app ingests documents, embeds them inside Atlas, and answers questions with 
 
 1. **Ingest:** the app extracts text from each document, splits it into chunks, and upserts one document per chunk into the `chunks` collection with the `content`, the source path, and the chunk index.
 2. **Embed:** an Atlas Automated Embedding index (`autoembed_idx`) points at the `content` field. Atlas embeds each chunk inside the cluster at index time.
-3. **Search:** The user sends a question as plain text. Atlas embeds the query text, then `$rankFusion` runs a text pipeline (`text_idx`) and a vector pipeline (`autoembed_idx`) over the same collection and combines the ranked results.
-4. **Answer:** The LLM receives the highest-ranked chunks, answers from those chunks and lists the source filenames.
+3. **Search:** The user sends a question as plain text. Atlas embeds the query text, then `$rankFusion` runs a text pipeline (`text_idx`) and a vector pipeline (`autoembed_idx`) over the same collection and combines the ranked results. The first message of a chat is searched as typed. A follow-up is first restated by the LLM as a standalone question, because the search only sees the text it is given, and the chat shows the text it searched for. Where the deployment enables it, a `$rerank` stage then reorders the candidates the search returned: the search decides which chunks are considered, the reranker decides their order.
+4. **Answer:** The LLM receives the highest-ranked chunks and the earlier questions and answers of the chat session, answers from those and lists the source filenames.
 
 ## Startup, indexes, and health
 
