@@ -32,6 +32,7 @@ _CONTAINER_ENV_KEYS = (
     "BEDROCK_MODEL",
     "AWS_REGION",
     "ENABLE_LLM",
+    "RAG_SYSTEM_PROMPT",
     "TOP_K",
     "CHUNK_MAX_TOKENS",
 )
@@ -44,6 +45,7 @@ _ENV_ORDER = (
     "AWS_REGION",
     "AWS_PROFILE",
     "ENABLE_LLM",
+    "RAG_SYSTEM_PROMPT",
     "TOP_K",
     "CHUNK_MAX_TOKENS",
 )

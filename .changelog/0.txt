@@ -9,3 +9,7 @@ module: Stores ingest state per chunks collection (`chunks_ingest_state`) so two
 ```release-note:enhancement
 module: Adds a `_chatbot_profiles` registry with one document per chat profile, storing that corpus's label, demo questions, and system prompt, plus `hybrid-search register` to register a collection
 ```
+
+```release-note:enhancement
+module: Adds a `corpus.yaml` manifest and `hybrid-search register-corpus` (plus `just register-corpus`) so a corpus directory registers as a chat profile in one command, and lets `just dump-local-env` and the local compose carry `chatbot.system_prompt` to the app
+```

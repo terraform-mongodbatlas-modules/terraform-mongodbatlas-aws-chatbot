@@ -1,4 +1,4 @@
-"""The CLI surface is flat: four commands, no sub-typers."""
+"""The CLI surface is flat: five commands, no sub-typers."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 from hybrid_search.cli.app import app
 
 runner = CliRunner()
-COMMANDS = ("index-create", "ingest", "query", "register")
+COMMANDS = ("index-create", "ingest", "query", "register", "register-corpus")
 
 
 def test_help_lists_the_flat_commands():

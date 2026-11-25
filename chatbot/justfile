@@ -39,3 +39,20 @@ dump-local-env terraform_dir=invocation_directory() region="" output="secrets/.e
     echo "  docker compose -f ${compose} --env-file ${out} up --build"
     echo
     echo "Open http://localhost:8001"
+
+# Register a corpus directory as a chat profile. Needs secrets/.env.local from dump-local-env.
+# The directory holds corpus.yaml and, by default, queries.yaml, system_prompt.txt, and docs/.
+register-corpus dir:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    env_file="{{ justfile_directory() }}/secrets/.env.local"
+    if [[ ! -f "${env_file}" ]]; then
+      echo "missing ${env_file}; run: just dump-local-env terraform_dir=<terraform workspace>" >&2
+      exit 1
+    fi
+    corpus_dir="$(cd "{{ dir }}" && pwd)"
+    set -a
+    . "${env_file}"
+    set +a
+    cd "{{ justfile_directory() }}"
+    uv run --extra ui hybrid-search register-corpus --corpus "${corpus_dir}"

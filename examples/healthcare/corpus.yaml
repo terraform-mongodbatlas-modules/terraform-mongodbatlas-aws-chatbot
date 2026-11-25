@@ -1,0 +1,6 @@
+# Registers this directory as a second chat profile in another deployment:
+#   just register-corpus examples/healthcare
+# queries.yaml, system_prompt.txt, and docs/ are the defaults for the omitted fields.
+collection: healthcare
+display_name: Springfield Health
+description: Fictional member-services corpus with four family personas

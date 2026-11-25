@@ -21,7 +21,7 @@ The default is Amazon Bedrock, which uses the task role and needs no key. For a 
 
 ## Run the app locally
 
-Apply with `features.debug_access_for_cluster = true`, then run `just dump-local-env` from your Terraform workspace. It writes `secrets/.env.local` from the deployed app secret and prints the docker compose command, so you can iterate on the app and `assets_dir` without a full apply.
+Apply with `features.debug_access_for_cluster = true`, then run `just dump-local-env` from your Terraform workspace. It writes `secrets/.env.local` from the deployed app secret and prints the docker compose command, so you can iterate on the app and `assets_dir` without a full apply. The file carries `chatbot.system_prompt` as `RAG_SYSTEM_PROMPT`, so the local default profile answers with the deployment's prompt. A deployment without that input leaves the key out, and the app keeps its built-in prompt.
 
 ## Reach the internals
 
@@ -73,9 +73,27 @@ A profile document carries:
 
 The startup task writes the default collection's document from `queries` and `chatbot.system_prompt`. It sets `display_name` only when it creates the document, so a label you registered survives a restart. A profile without `system_prompt` answers with the module's `RAG_SYSTEM_PROMPT`. The default profile without `queries` shows the bundled questions, and another profile without `queries` shows only the upload and delete starters.
 
+### The corpus directory
+
+A corpus is a directory that describes itself in `corpus.yaml`:
+
+- **`collection`:** the chunks collection to create or update. It must start with a letter or digit and use only letters, digits, underscores, and hyphens.
+- **`display_name`:** the label in the dropdown.
+- **`description`, `icon`:** optional tooltip text and an image URL the app serves.
+- **`queries`, `system_prompt`, `docs`:** optional paths. When a field is omitted, the loader uses `queries.yaml`, `system_prompt.txt`, and `docs/` beside the manifest when they exist.
+
+The directory names itself, so adding another bundled corpus is: copy the directory, edit `corpus.yaml`, and run the recipe. `examples/healthcare` is one; its file names are the omitted-field defaults.
+
 ### Register a collection
 
-Run the CLI against the deployed database. The local UI section writes `secrets/.env.local` from the deployed app secret, and that file carries `MONGODB_URI`.
+Register the corpus directory against the deployed database. The local UI section writes `secrets/.env.local`, and that file carries `MONGODB_URI`.
+
+```sh
+just dump-local-env terraform_dir=<your terraform workspace>
+just register-corpus examples/healthcare
+```
+
+`dump-local-env` reads an existing deployment's state, so registering a second corpus needs no new apply. The recipe writes the profile document in `_chatbot_profiles`, creates the collection's search indexes, and ingests `docs/` into `healthcare_ingest_state`. For a corpus without a manifest, run the CLI directly:
 
 ```sh
 cd chatbot
