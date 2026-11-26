@@ -1,5 +1,17 @@
 ## (Unreleased)
 
+NOTES:
+
+* module: Deployments created before this fix replace `prepare_build_dirs` and `render_assets` once, because the artifacts root is now a replacement trigger ([#54](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/54))
+
+ENHANCEMENTS:
+
+* module: Adds `overrides.build_artifacts_dir` to place the generated `.build` and `.render` trees, so two module calls in one working directory keep separate artifacts ([#54](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/54))
+
+BUG FIXES:
+
+* module: Writes build artifacts under the caller's root so `terraform init` no longer deletes the render and archive inputs ([#54](https://github.com/terraform-mongodbatlas-modules/terraform-mongodbatlas-aws-chatbot/pull/54))
+
 ## 0.2.0 (October 29, 2026)
 
 NOTES:
