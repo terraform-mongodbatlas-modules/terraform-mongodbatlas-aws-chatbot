@@ -236,6 +236,7 @@ variable "overrides" {
     - `domain`: the custom-domain aliases and ACM certificate.
     - `allowed_ip`: a fixed debug IP instead of resolving the caller's.
     - `skip_tags`: set no tags at all.
+    - `build_artifacts_dir`: directory for the generated `.build/` and `.render/` trees; defaults to the root module directory (`path.root`). Set distinct values for two module calls that share one working directory, or point it at a persistent path on CI.
   EOT
   type = object({
     resource_prefix = optional(string)
@@ -305,8 +306,9 @@ variable "overrides" {
       acm_certificate_arn = optional(string)
     }))
 
-    allowed_ip = optional(string, "")
-    skip_tags  = optional(bool, false)
+    allowed_ip          = optional(string, "")
+    skip_tags           = optional(bool, false)
+    build_artifacts_dir = optional(string)
   })
   default = {}
 
