@@ -16,6 +16,7 @@ This guide is experimental. It covers inputs and workflows that the examples do 
 ## The app
 
 - **`chatbot.container_size`, `chatbot.task_cpu`, `chatbot.task_memory`:** the ECS task size.
+- **`chatbot.start_screen_actions`, `chatbot.delete_enabled`:** false removes the upload and delete chips from the start screen, and false takes Delete out of the chat altogether. Both default to true.
 - **`chatbot.health_check_grace_period_seconds`:** how long the service ignores failing health checks after a task starts. The default is 30. Raise it when a rollout fails with tasks stopped while they already answer.
 - **`chatbot.image_url` or `chatbot.dockerfile_path`:** bring your own image, or build your own Dockerfile instead of the vendored app. The two are mutually exclusive.
 - **`overrides.extra_apps`:** more apps on the same cluster. An entry with `routing` joins the shared edge; an entry with no `routing` is a private worker with no HTTP edge.
