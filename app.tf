@@ -77,8 +77,10 @@ module "ecs_service" {
   }
   task_cpu    = each.value.task_cpu
   task_memory = each.value.task_memory
-  image_tag   = local.app_image[each.key].image_tag
-  tags        = local.tags
+  # The service module's own default is 30; a null here would replace it, not select it.
+  health_check_grace_period_seconds = coalesce(each.value.health_check_grace_period_seconds, 30)
+  image_tag                         = local.app_image[each.key].image_tag
+  tags                              = local.tags
 
   # A built image must exist before the service starts. `terraform_data.build`
   # is empty for apps that bring their own image, and the dependency is then a

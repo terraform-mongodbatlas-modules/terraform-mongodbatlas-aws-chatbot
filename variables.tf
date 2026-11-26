@@ -134,6 +134,7 @@ variable "chatbot" {
     - `ecr`: null infers from the image source. Built apps keep a module-managed ECR repository; a pure `image_url` app skips it. Set true with `image_url` to keep the repository around during a rollback or cutover.
     - `container_size`: `small`, `medium`, or `large`; maps to the ECS task CPU and memory.
     - `task_cpu` / `task_memory`: exact ECS units, overriding `container_size`.
+    - `health_check_grace_period_seconds`: how long the service ignores failing load balancer health checks after a task starts. Null keeps 30. A task is stopped after the grace period plus three failed checks ten seconds apart, so raise it when the app takes longer than that to listen: a rollout then fails with every task stopped while it is already answering.
     - `system_prompt`: the RAG system prompt the app answers with. Null keeps the app default, which answers only from the retrieved context, declines when the context is insufficient, and leads with short bullet points followed by a paragraph of details.
     - `llm_max_snippets`: how many of the retrieved chunks the model reads for each answer. Null keeps the app default of 5. The search returns 20 chunks, so 20 sends everything retrieved.
     - `llm_history_turns`: how many earlier question-and-answer turns of the chat session the model sees with each new question, so a follow-up can refer back. Null keeps the app default of 10; 0 sends each question on its own, which also leaves `rewrite_followups` nothing to work from.
@@ -146,19 +147,20 @@ variable "chatbot" {
     - `aws_region`: the app's AWS region. Defaults to the first entry in `regions`.
   EOT
   type = object({
-    enabled           = optional(bool, true)
-    image_url         = optional(string)
-    dockerfile_path   = optional(string)
-    ecr               = optional(bool)
-    container_size    = optional(string, "small")
-    task_cpu          = optional(string)
-    task_memory       = optional(string)
-    system_prompt     = optional(string)
-    llm_max_snippets  = optional(number)
-    llm_history_turns = optional(number)
-    rewrite_followups = optional(bool)
-    rerank_results    = optional(bool)
-    rerank_candidates = optional(number)
+    enabled                           = optional(bool, true)
+    image_url                         = optional(string)
+    dockerfile_path                   = optional(string)
+    ecr                               = optional(bool)
+    container_size                    = optional(string, "small")
+    task_cpu                          = optional(string)
+    task_memory                       = optional(string)
+    health_check_grace_period_seconds = optional(number)
+    system_prompt                     = optional(string)
+    llm_max_snippets                  = optional(number)
+    llm_history_turns                 = optional(number)
+    rewrite_followups                 = optional(bool)
+    rerank_results                    = optional(bool)
+    rerank_candidates                 = optional(number)
     db_access = optional(object({
       database_name   = optional(string, "hybrid_search")
       role_name       = optional(string, "readWrite")
@@ -226,6 +228,14 @@ variable "chatbot" {
       var.chatbot.rerank_candidates >= 1 && var.chatbot.rerank_candidates <= 1000 && floor(var.chatbot.rerank_candidates) == var.chatbot.rerank_candidates
     )
     error_message = "chatbot.rerank_candidates must be a whole number from 1 to 1000."
+  }
+
+  validation {
+    condition = (
+      var.chatbot.health_check_grace_period_seconds == null ? true :
+      var.chatbot.health_check_grace_period_seconds >= 0 && floor(var.chatbot.health_check_grace_period_seconds) == var.chatbot.health_check_grace_period_seconds
+    )
+    error_message = "chatbot.health_check_grace_period_seconds must be a whole number of at least 0."
   }
 }
 

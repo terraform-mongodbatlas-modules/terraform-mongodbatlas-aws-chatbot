@@ -411,6 +411,42 @@ run "chatbot_answer_settings_are_omitted_by_default" {
   }
 }
 
+run "chatbot_health_check_grace_period_reaches_the_service" {
+  command = plan
+
+  variables {
+    chatbot = {
+      health_check_grace_period_seconds = 120
+    }
+  }
+
+  assert {
+    condition     = local.apps["chatbot"].health_check_grace_period_seconds == 120
+    error_message = "chatbot.health_check_grace_period_seconds should reach the ECS service module"
+  }
+}
+
+run "chatbot_health_check_grace_period_keeps_the_service_default" {
+  command = plan
+
+  assert {
+    condition     = local.apps["chatbot"].health_check_grace_period_seconds == null
+    error_message = "An unset chatbot.health_check_grace_period_seconds should leave the service module's 30 seconds in place"
+  }
+}
+
+run "chatbot_health_check_grace_period_rejects_a_negative_value" {
+  command = plan
+
+  variables {
+    chatbot = {
+      health_check_grace_period_seconds = -1
+    }
+  }
+
+  expect_failures = [var.chatbot]
+}
+
 run "chatbot_rerank_candidates_rejects_more_than_the_stage_accepts" {
   command = plan
 

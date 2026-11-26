@@ -90,17 +90,19 @@ locals {
 
   apps = {
     for k, cfg in local.apps_input : k => {
-      name                = local.app_names[k]
-      aws_region          = coalesce(try(cfg.aws_region, null), local.aws_region)
-      image_url           = try(cfg.image_url, null)
-      dockerfile_path     = try(cfg.dockerfile_path, null)
-      ecr                 = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null)
-      container_size      = try(cfg.container_size, "small")
-      task_cpu            = coalesce(try(cfg.task_cpu, null), local.container_sizes[try(cfg.container_size, "small")].cpu)
-      task_memory         = coalesce(try(cfg.task_memory, null), local.container_sizes[try(cfg.container_size, "small")].memory)
-      internet_egress     = try(cfg.internet_egress, false)
-      ecr_key             = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null) ? k : null
-      runtime_secret_name = "${local.app_names[k]}-app"
+      name            = local.app_names[k]
+      aws_region      = coalesce(try(cfg.aws_region, null), local.aws_region)
+      image_url       = try(cfg.image_url, null)
+      dockerfile_path = try(cfg.dockerfile_path, null)
+      ecr             = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null)
+      container_size  = try(cfg.container_size, "small")
+      task_cpu        = coalesce(try(cfg.task_cpu, null), local.container_sizes[try(cfg.container_size, "small")].cpu)
+      task_memory     = coalesce(try(cfg.task_memory, null), local.container_sizes[try(cfg.container_size, "small")].memory)
+      internet_egress = try(cfg.internet_egress, false)
+      # Null keeps the service module's default. Only the chatbot's type has the field.
+      health_check_grace_period_seconds = try(cfg.health_check_grace_period_seconds, null)
+      ecr_key                           = coalesce(try(cfg.ecr, null), try(cfg.image_url, null) == null) ? k : null
+      runtime_secret_name               = "${local.app_names[k]}-app"
 
       db_access = {
         database_name   = coalesce(try(cfg.db_access.database_name, null), "hybrid_search")
