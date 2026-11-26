@@ -53,7 +53,7 @@ resource "aws_lb" "this" {
 
 resource "aws_cloudfront_vpc_origin" "this" {
   vpc_origin_endpoint_config {
-    name                   = "${var.name}-vpc-origin"
+    name                   = "${var.name}-vpc-origin-${var.aws_region}"
     arn                    = aws_lb.this.arn
     http_port              = 80
     https_port             = 443
@@ -65,7 +65,16 @@ resource "aws_cloudfront_vpc_origin" "this" {
     }
   }
 
-  tags = merge(var.tags, { Name = "${var.name}-vpc-origin" })
+  tags = merge(var.tags, { Name = "${var.name}-vpc-origin-${var.aws_region}" })
+
+  # CloudFront rejects an update to a VPC origin while a distribution references
+  # it, and VPC origin names must be unique. A replacement has to create the new
+  # origin under a different name, switch the distribution over, and only then
+  # delete the old origin, which is what create_before_destroy orders here.
+  lifecycle {
+    create_before_destroy = true
+    replace_triggered_by  = [aws_lb.this.arn]
+  }
 }
 
 resource "aws_lb_listener" "http" {

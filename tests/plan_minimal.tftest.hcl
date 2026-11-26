@@ -157,6 +157,18 @@ run "built_image_resolves_to_the_module_repository" {
   }
 }
 
+run "build_reruns_when_the_repository_changes" {
+  command = plan
+
+  # The repository URL is unknown at plan, but the trigger still carries two
+  # entries, so a new ECR repository (for example in another region) replaces
+  # the build and pushes the image there.
+  assert {
+    condition     = length(terraform_data.build["chatbot"].triggers_replace) == 2
+    error_message = "The build must rerun when the ECR repository changes, not only when the content-addressed tag changes"
+  }
+}
+
 run "outputs_expose_the_public_contract" {
   command = plan
 

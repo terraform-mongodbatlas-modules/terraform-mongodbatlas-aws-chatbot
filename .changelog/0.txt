@@ -21,3 +21,15 @@ module: Reports an index the app has not created as `MISSING` instead of `PENDIN
 ```release-note:enhancement
 module: Retries index creation on startup, drops and recreates `FAILED` indexes, records the startup error on the default profile document, and adds `hybrid-search index-create --recreate`
 ```
+
+```release-note:bug
+module: Replaces the CloudFront VPC origin when its load balancer changes, instead of failing on an origin that a distribution still references
+```
+
+```release-note:note
+module: Renames the CloudFront VPC origin to include its load balancer region, so an existing deployment must replace that origin once with `terraform apply -replace`; CloudFront rejects a rename while a distribution uses the origin
+```
+
+```release-note:bug
+module: Rebuilds the app image when the ECR repository changes, so deploying into another AWS region pushes the image instead of leaving the ECS service unable to pull it
+```

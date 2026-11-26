@@ -54,6 +54,18 @@ run "alb_is_internal_in_private_subnets" {
   }
 }
 
+run "vpc_origin_name_is_region_scoped" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      aws_cloudfront_vpc_origin.this.vpc_origin_endpoint_config[0].name == "lz-main-vpc-origin-us-east-1",
+      aws_cloudfront_vpc_origin.this.tags["Name"] == "lz-main-vpc-origin-us-east-1",
+    ])
+    error_message = "VPC origin name must include the region so a replacement can coexist with the origin it replaces"
+  }
+}
+
 run "alb_and_cloudfront_idle_read_timeout_120" {
   command = plan
 

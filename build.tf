@@ -368,7 +368,12 @@ resource "aws_codebuild_project" "image" {
 resource "terraform_data" "build" {
   for_each = local.build_apps
 
-  triggers_replace = [local.image_tags[each.key]]
+  # The tag tracks content only, so the repository URL is what rebuilds into a
+  # new region's ECR repository instead of reusing an image pushed to the old one.
+  triggers_replace = [
+    local.image_tags[each.key],
+    module.app_infra.ecs_apps[each.key].ecr_repository_url,
+  ]
 
   depends_on = [aws_codebuild_project.image]
 
