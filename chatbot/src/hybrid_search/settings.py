@@ -82,6 +82,14 @@ class HybridSearchSettings(BaseSettings):
     rerank_model: str = "rerank-2.5"
     # Candidates the retrieval hands to the reranker. $rerank accepts at most 1000.
     rerank_candidates: int = Field(default=80, ge=1, le=1000)
+    # The start screen shows "Upload documents" and "Delete documents" ahead of the
+    # corpus chips. False leaves only the chips, for a deployment where a visitor
+    # should start from a question. The composer buttons are not affected.
+    start_screen_actions: bool = True
+    # False takes Delete out of the chat altogether: the composer button, the start
+    # screen chip and the delete actions. "Delete all" empties the collection the
+    # chat answers from, including chunks that were loaded outside the app.
+    delete_enabled: bool = True
     llm_provider: LlmProvider = "anthropic"
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"

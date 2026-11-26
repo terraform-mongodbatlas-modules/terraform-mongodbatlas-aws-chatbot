@@ -519,3 +519,92 @@ async def test_on_chat_start_starts_the_gear_from_the_deployments_settings(
     await chat_module.on_chat_start()
 
     assert started == [(SearchModes(rewrite=False, rerank=rerank_enabled), rerank_enabled)]
+
+
+_CHIPS = [DemoQuery(label="A chip", message="a question")]
+
+
+def _starter_labels(starters) -> list[str]:
+    return [starter.label for starter in starters]
+
+
+def test_starters_put_upload_and_delete_ahead_of_the_chips_by_default():
+    assert _starter_labels(chat_module._starters(_CHIPS)) == [
+        "Upload documents",
+        "Delete documents",
+        "A chip",
+    ]
+
+
+def test_starters_show_only_the_chips_when_start_screen_actions_are_off():
+    starters = chat_module._starters(_CHIPS, start_screen_actions=False)
+    assert _starter_labels(starters) == ["A chip"]
+
+
+def test_starters_drop_delete_when_delete_is_off():
+    starters = chat_module._starters(_CHIPS, delete_enabled=False)
+    assert _starter_labels(starters) == ["Upload documents", "A chip"]
+
+
+def test_commands_drop_delete_when_delete_is_off():
+    assert [c["id"] for c in chat_module._commands(delete_enabled=True)] == [
+        "Ingest",
+        "Delete",
+        "Demo",
+    ]
+    assert [c["id"] for c in chat_module._commands(delete_enabled=False)] == ["Ingest", "Demo"]
+
+
+def _capture_messages(monkeypatch) -> list[str]:
+    sent: list[str] = []
+
+    class _FakeMessage:
+        def __init__(self, content: str = "") -> None:
+            self.content = content
+
+        async def send(self) -> None:
+            sent.append(self.content)
+
+    monkeypatch.setattr(chat_module.cl, "Message", _FakeMessage)
+    return sent
+
+
+@pytest.mark.asyncio
+async def test_on_message_refuses_the_delete_command_when_delete_is_off(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", _query_settings(delete_enabled=False))
+    sent = _capture_messages(monkeypatch)
+    ran: list[Mode] = []
+
+    async def fake_run(mode: Mode) -> None:
+        ran.append(mode)
+
+    monkeypatch.setattr(chat_module, "_run_mode", fake_run)
+
+    # Both the composer command and its typed text.
+    for command, content in (("Delete", ""), (None, "Delete files")):
+        message = type("Msg", (), {"command": command, "content": content, "elements": []})()
+        await chat_module.on_message(message)
+
+    assert ran == []
+    assert sent == [chat_module.DELETE_DISABLED_MESSAGE] * 2
+    assert session.get("ui_mode") is None
+
+
+@pytest.mark.asyncio
+async def test_delete_actions_do_nothing_when_delete_is_off(monkeypatch):
+    session = _patch_session(monkeypatch)
+    session.set("settings", _query_settings(delete_enabled=False))
+    sent = _capture_messages(monkeypatch)
+    deleted: list[object] = []
+
+    async def fake_perform_delete(**kwargs):
+        deleted.append(kwargs)
+
+    monkeypatch.setattr(chat_module, "_perform_delete", fake_perform_delete)
+
+    await chat_module.on_delete_all(type("Action", (), {"payload": {}})())
+    await chat_module.on_delete_file(type("Action", (), {"payload": {"file_path": "a.md"}})())
+
+    assert deleted == []
+    assert sent == [chat_module.DELETE_DISABLED_MESSAGE] * 2

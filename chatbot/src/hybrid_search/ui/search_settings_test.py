@@ -37,11 +37,13 @@ def test_default_modes_take_the_rewrite_default_from_the_deployment():
 
 def test_confirmation_message_names_follow_up_rewriting_only_when_it_runs():
     assert confirmation_message(SearchModes()) == (
-        "Search modes: keyword, vector, LLM, follow-up rewriting."
+        "Search modes: keyword, semantic, LLM, follow-up rewriting."
     )
-    assert confirmation_message(SearchModes(rewrite=False)) == "Search modes: keyword, vector, LLM."
+    assert (
+        confirmation_message(SearchModes(rewrite=False)) == "Search modes: keyword, semantic, LLM."
+    )
     # Switch on, LLM off: no model call is made, so it is not listed.
-    assert confirmation_message(SearchModes(llm=False)) == "Search modes: keyword, vector."
+    assert confirmation_message(SearchModes(llm=False)) == "Search modes: keyword, semantic."
 
 
 def _switch_ids(chat_settings) -> list[str]:
@@ -74,5 +76,11 @@ def test_default_modes_start_with_the_rerank_on_where_the_deployment_enabled_it(
 
 def test_confirmation_message_names_the_rerank():
     assert confirmation_message(SearchModes(rerank=True)) == (
-        "Search modes: keyword, vector, LLM, follow-up rewriting, rerank."
+        "Search modes: keyword, semantic, LLM, follow-up rewriting, rerank."
     )
+
+
+def test_chat_settings_call_the_vector_switch_semantic_search():
+    labels = {widget.id: widget.label for widget in build_chat_settings(SearchModes()).inputs}
+    assert labels["vector"] == "Semantic search"
+    assert labels["keyword"] == "Keyword search"

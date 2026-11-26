@@ -410,6 +410,12 @@ locals {
     },
     var.chatbot.rerank_candidates == null ? {} : {
       RERANK_CANDIDATES = tostring(var.chatbot.rerank_candidates)
+    },
+    var.chatbot.start_screen_actions == null ? {} : {
+      START_SCREEN_ACTIONS = tostring(var.chatbot.start_screen_actions)
+    },
+    var.chatbot.delete_enabled == null ? {} : {
+      DELETE_ENABLED = tostring(var.chatbot.delete_enabled)
     }
   )
 

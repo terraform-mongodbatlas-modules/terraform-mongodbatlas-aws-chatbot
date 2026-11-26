@@ -411,6 +411,31 @@ run "chatbot_answer_settings_are_omitted_by_default" {
   }
 }
 
+run "chatbot_start_screen_and_delete_settings_reach_the_container_env" {
+  command = plan
+
+  variables {
+    chatbot = {
+      start_screen_actions = false
+      delete_enabled       = false
+    }
+  }
+
+  assert {
+    condition     = local.app_env.START_SCREEN_ACTIONS == "false" && local.app_env.DELETE_ENABLED == "false"
+    error_message = "chatbot.start_screen_actions and chatbot.delete_enabled should land in the container env, false included"
+  }
+}
+
+run "chatbot_start_screen_and_delete_settings_are_omitted_by_default" {
+  command = plan
+
+  assert {
+    condition     = !contains(keys(local.app_env), "START_SCREEN_ACTIONS") && !contains(keys(local.app_env), "DELETE_ENABLED")
+    error_message = "Unset start screen and delete settings should leave the app defaults in place"
+  }
+}
+
 run "chatbot_health_check_grace_period_reaches_the_service" {
   command = plan
 

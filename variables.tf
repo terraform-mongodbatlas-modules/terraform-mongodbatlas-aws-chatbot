@@ -141,6 +141,8 @@ variable "chatbot" {
     - `rewrite_followups`: the search only sees the text it is given, so a follow-up such as "and what will it cost?" finds little. True has the model restate a follow-up as a standalone question first, and the search runs on that; the chat shows what it searched for. One extra model call per follow-up, none on the first message of a chat. Null keeps the app default of true. This is the starting value of the chat's "Rewrite follow-ups" switch, which a user can flip per session.
     - `rerank_results`: true reorders the retrieved candidates with Atlas native reranking (`$rerank`) before the answer, which recovers an exact match that rank fusion buried and a paraphrase that keyword search missed. Needs MongoDB 9.0 or later on the cluster and Native Reranking enabled in the Atlas project settings; the module does not turn that setting on. Null keeps the app default of false. When true, the chat shows a "Rerank results" switch, on at the start of each chat.
     - `rerank_candidates`: how many retrieved candidates the reranker reads, from 1 to 1000. Null keeps the app default of 80. More candidates find more and take longer.
+    - `start_screen_actions`: false removes "Upload documents" and "Delete documents" from the chat's start screen, leaving only the corpus chips. Null keeps the app default of true. The composer buttons stay.
+    - `delete_enabled`: false takes Delete out of the chat altogether: the composer button, the start screen chip and the delete actions. Null keeps the app default of true. "Delete all" empties the collection the chat answers from, including chunks loaded outside the app.
     - `db_access`: the database and role the app authenticates as. A null `collection_name` grants the whole database, which the chat profile dropdown needs to list and serve every registered profile in it. A `collection_name` grant limits the app to the default profile.
     - `routing`: the path pattern and listener priority on the shared edge. Defaults to `/*` at priority 100.
     - `internet_egress`: allow HTTPS egress from the app security group through NAT.
@@ -161,6 +163,8 @@ variable "chatbot" {
     rewrite_followups                 = optional(bool)
     rerank_results                    = optional(bool)
     rerank_candidates                 = optional(number)
+    start_screen_actions              = optional(bool)
+    delete_enabled                    = optional(bool)
     db_access = optional(object({
       database_name   = optional(string, "hybrid_search")
       role_name       = optional(string, "readWrite")

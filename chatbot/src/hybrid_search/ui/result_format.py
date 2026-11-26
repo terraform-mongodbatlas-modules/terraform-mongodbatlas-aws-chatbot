@@ -14,7 +14,7 @@ def retrieval_header(pipeline: RetrievalPipeline) -> str:
         case RetrievalPipeline.KEYWORD:
             return "Keyword search only"
         case RetrievalPipeline.VECTOR:
-            return "Vector search only"
+            return "Semantic search only"
         case RetrievalPipeline.RANK_FUSION:
             return "Keyword + vector retrieval ($rankFusion)"
 

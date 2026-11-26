@@ -203,6 +203,20 @@ def test_rerank_candidates_stay_within_what_the_stage_accepts(candidates):
         _settings(rerank_candidates=candidates)
 
 
+def test_start_screen_actions_and_delete_are_on_by_default():
+    settings = _settings()
+    assert settings.start_screen_actions is True
+    assert settings.delete_enabled is True
+
+
+def test_start_screen_actions_and_delete_env_turn_them_off(monkeypatch):
+    monkeypatch.setenv("START_SCREEN_ACTIONS", "false")
+    monkeypatch.setenv("DELETE_ENABLED", "false")
+    settings = _settings()
+    assert settings.start_screen_actions is False
+    assert settings.delete_enabled is False
+
+
 def test_document_dirs_defaults_to_bundled_corpus():
     assert _settings().document_dirs == [Path("assets/document_dirs")]
 

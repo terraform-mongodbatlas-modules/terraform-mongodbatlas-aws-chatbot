@@ -18,7 +18,7 @@ _RERANK = "rerank"
 def build_chat_settings(modes: SearchModes, *, rerank_available: bool = False) -> cl.ChatSettings:
     switches = [
         Switch(id=_KEYWORD, label="Keyword search", initial=modes.keyword),
-        Switch(id=_VECTOR, label="Vector search", initial=modes.vector),
+        Switch(id=_VECTOR, label="Semantic search", initial=modes.vector),
         Switch(id=_LLM, label="LLM answer", initial=modes.llm),
         Switch(id=_REWRITE, label="Rewrite follow-ups", initial=modes.rewrite),
     ]
@@ -47,7 +47,7 @@ def confirmation_message(modes: SearchModes) -> str:
         name
         for enabled, name in (
             (modes.keyword, "keyword"),
-            (modes.vector, "vector"),
+            (modes.vector, "semantic"),
             (modes.llm, "LLM"),
             (modes.rewrites_followups, "follow-up rewriting"),
             (modes.rerank, "rerank"),

@@ -94,14 +94,39 @@ if (
     cl.password_auth_callback(_password_auth_callback)
 
 
-def _starters(queries: Sequence[DemoQuery]) -> list[cl.Starter]:
+def _starters(
+    queries: Sequence[DemoQuery],
+    *,
+    start_screen_actions: bool = True,
+    delete_enabled: bool = True,
+) -> list[cl.Starter]:
     # A profile's starters replace the global list, so the upload and delete
-    # commands ride along with the corpus chips.
+    # commands ride along with the corpus chips, unless the deployment turned
+    # them off.
+    actions: list[cl.Starter] = []
+    if start_screen_actions:
+        actions.append(cl.Starter(**UPLOAD_STARTER))
+        if delete_enabled:
+            actions.append(cl.Starter(**DELETE_STARTER))
     return [
-        cl.Starter(**UPLOAD_STARTER),
-        cl.Starter(**DELETE_STARTER),
+        *actions,
         *[cl.Starter(label=query.label, message=query.message) for query in queries],
     ]
+
+
+def _commands(*, delete_enabled: bool) -> list[dict]:
+    if delete_enabled:
+        return [INGEST_COMMAND, DELETE_COMMAND, DEMO_COMMAND]
+    return [INGEST_COMMAND, DEMO_COMMAND]
+
+
+def _delete_enabled() -> bool:
+    # Read from the session, where every handler already finds its settings. A
+    # session without them (start-up failed) has nothing to delete from either way.
+    return getattr(cl.user_session.get("settings"), "delete_enabled", True)
+
+
+DELETE_DISABLED_MESSAGE = "Delete is turned off for this deployment."
 
 
 def _profile_queries(profile: CollectionProfile) -> Sequence[DemoQuery]:
@@ -116,14 +141,20 @@ def _profile_queries(profile: CollectionProfile) -> Sequence[DemoQuery]:
 
 @cl.set_starters
 async def set_starters():
-    return _starters(load_demo_queries(get_settings().demo_queries_path))
+    settings = get_settings()
+    return _starters(
+        load_demo_queries(settings.demo_queries_path),
+        start_screen_actions=settings.start_screen_actions,
+        delete_enabled=settings.delete_enabled,
+    )
 
 
 @cl.set_chat_profiles
 async def set_chat_profiles():
     # Chainlit calls this on every /project/settings load; the listing carries
     # its own short cache so a page load does not scan the database.
-    listing = await load_profile_listing(get_settings())
+    settings = get_settings()
+    listing = await load_profile_listing(settings)
     return [
         cl.ChatProfile(
             name=profile.collection,
@@ -131,7 +162,11 @@ async def set_chat_profiles():
             markdown_description=profile.description or profile.display_name,
             icon=profile.icon,
             default=profile.default,
-            starters=_starters(_profile_queries(profile)),
+            starters=_starters(
+                _profile_queries(profile),
+                start_screen_actions=settings.start_screen_actions,
+                delete_enabled=settings.delete_enabled,
+            ),
         )
         for profile in listing.profiles
     ]
@@ -182,7 +217,7 @@ async def on_chat_start():
         ).send()
         return
     set_ui_mode(UiMode.QUERY)
-    await cl.context.emitter.set_commands([INGEST_COMMAND, DELETE_COMMAND, DEMO_COMMAND])
+    await cl.context.emitter.set_commands(_commands(delete_enabled=settings.delete_enabled))
     await send_default_settings(
         default_modes(rewrite_followups=settings.rewrite_followups, rerank=settings.rerank_enabled),
         rerank_available=settings.rerank_enabled,
@@ -232,6 +267,10 @@ async def _run_mode(mode: Mode) -> None:
 @cl.on_message
 async def on_message(message: cl.Message):
     mode = resolve_mode(command=message.command, content=message.content)
+    if mode == Mode.DELETE and not _delete_enabled():
+        # Typing the command's text would otherwise still open the delete list.
+        await cl.Message(content=DELETE_DISABLED_MESSAGE).send()
+        return
     if mode:
         set_ui_mode(_mode_to_ui_mode(mode))
         await _run_mode(mode)
@@ -420,6 +459,9 @@ async def _handle_delete_text_fallback(selection: str) -> None:
 
 @cl.action_callback(DELETE_FILE_ACTION)
 async def on_delete_file(action: cl.Action):
+    if not _delete_enabled():
+        await cl.Message(content=DELETE_DISABLED_MESSAGE).send()
+        return
     file_path = action.payload.get("file_path")
     if not isinstance(file_path, str):
         return
@@ -441,6 +483,9 @@ async def on_delete_file(action: cl.Action):
 
 @cl.action_callback(DELETE_ALL_ACTION)
 async def on_delete_all(_action: cl.Action):
+    if not _delete_enabled():
+        await cl.Message(content=DELETE_DISABLED_MESSAGE).send()
+        return
     collection = cl.user_session.get("collection")
     state_collection = cl.user_session.get("state_collection")
     await _perform_delete(
